@@ -11,6 +11,11 @@ function init() {
 
 // Обработка сообщений от background script и sidepanel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'PING') {
+    sendResponse({ success: true });
+    return false;
+  }
+
   if (message.type === 'ACTIVATE_OVERLAY') {
     try {
       if (!selectionManager) {

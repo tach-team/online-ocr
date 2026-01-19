@@ -12,39 +12,24 @@ chrome.action.onClicked.addListener(async (tab) => {
     // Открываем side panel
     await chrome.sidePanel.open({ tabId: tab.id });
 
-    // Функция для активации overlay
-    const activateOverlay = async () => {
-      try {
-        await chrome.tabs.sendMessage(tab.id!, {
-          type: 'ACTIVATE_OVERLAY',
-        });
-      } catch (sendError) {
-        // Если content script не загружен, инжектируем его программно
-        if (chrome.runtime.lastError?.message?.includes('Receiving end does not exist')) {
-          try {
-            await chrome.scripting.executeScript({
-              target: { tabId: tab.id! },
-              files: ['content.js'],
-            });
-
-            // Ждем инициализации content script
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            // Пытаемся снова отправить сообщение
-            await chrome.tabs.sendMessage(tab.id!, {
-              type: 'ACTIVATE_OVERLAY',
-            });
-          } catch (injectError) {
-            console.error('Failed to inject content script:', injectError);
-            throw injectError;
-          }
-        } else {
-          throw sendError;
+    // Убеждаемся, что content script загружен
+    try {
+      await chrome.tabs.sendMessage(tab.id!, {
+        type: 'PING',
+      });
+    } catch (sendError) {
+      // Если content script не загружен, инжектируем его программно
+      if (chrome.runtime.lastError?.message?.includes('Receiving end does not exist')) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id! },
+            files: ['content.js'],
+          });
+        } catch (injectError) {
+          console.error('Failed to inject content script:', injectError);
         }
       }
-    };
-
-    await activateOverlay();
+    }
   } catch (error) {
     console.error('Error activating extension:', error);
   }

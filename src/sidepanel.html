@@ -14,8 +14,13 @@
 
     <div id="status-container" class="status-container">
       <div id="waiting-state" class="state waiting-state">
-        <div class="icon">📸</div>
-        <p>Выделите область на странице для извлечения текста</p>
+        <div class="toggle-container">
+          <span class="toggle-label">Screenshot to text</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="screenshot-toggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <div id="processing-state" class="state processing-state" style="display: none;">

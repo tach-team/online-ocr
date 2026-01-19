@@ -19,6 +19,7 @@ const copyButton = document.getElementById('copy-button')!;
 const newSelectionButton = document.getElementById('new-selection-button')!;
 const retryButton = document.getElementById('retry-button')!;
 const errorMessage = document.getElementById('error-message')!;
+const screenshotToggle = document.getElementById('screenshot-toggle') as HTMLInputElement;
 
 function showState(state: State['type']): void {
   waitingState.style.display = state === 'waiting' ? 'block' : 'none';
@@ -122,8 +123,49 @@ function requestNewSelection(): void {
         type: 'ACTIVATE_OVERLAY',
       });
       showState('waiting');
+      // Включаем свитчер при запросе новой области
+      if (screenshotToggle) {
+        screenshotToggle.checked = true;
+      }
     }
   });
+}
+
+// Функция для активации overlay
+function activateOverlay(): void {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        type: 'ACTIVATE_OVERLAY',
+      }).catch(() => {
+        // Игнорируем ошибки, если content script не загружен
+      });
+    }
+  });
+}
+
+// Функция для деактивации overlay
+function deactivateOverlayFromToggle(): void {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    tabs.forEach(tab => {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'DEACTIVATE_OVERLAY',
+        }).catch(() => {
+          // Игнорируем ошибки, если content script не загружен
+        });
+      }
+    });
+  });
+}
+
+// Обработчик переключения свитчера
+function handleToggleChange(): void {
+  if (screenshotToggle.checked) {
+    activateOverlay();
+  } else {
+    deactivateOverlayFromToggle();
+  }
 }
 
 // Обработчики событий
@@ -134,6 +176,7 @@ retryButton.addEventListener('click', () => {
     processImage(currentImageData); // При повторе используем уже обрезанное изображение
   }
 });
+screenshotToggle.addEventListener('change', handleToggleChange);
 
 // Слушаем сообщения от content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -172,3 +215,10 @@ window.addEventListener('beforeunload', () => {
 
 // Инициализация при загрузке
 showState('waiting');
+// Активируем overlay при загрузке, если свитчер включен
+if (screenshotToggle && screenshotToggle.checked) {
+  // Небольшая задержка для обеспечения загрузки content script
+  setTimeout(() => {
+    activateOverlay();
+  }, 100);
+}

@@ -40,13 +40,6 @@ export class SelectionManager {
     this.horizontalGuide.id = 'ocr-horizontal-guide';
     this.horizontalGuide.className = 'ocr-guide ocr-guide-horizontal';
 
-    // Создаем инструкцию
-    const instruction = document.createElement('div');
-    instruction.id = 'ocr-instruction';
-    instruction.className = 'ocr-instruction';
-    instruction.textContent = 'Выделите область для извлечения текста';
-
-    this.overlay.appendChild(instruction);
     this.overlay.appendChild(this.selectionBox);
     this.overlay.appendChild(this.verticalGuide);
     this.overlay.appendChild(this.horizontalGuide);
