@@ -8,12 +8,21 @@
 </head>
 <body>
   <div class="container">
-    <header class="header">
-      <h1>Извлечение текста</h1>
-    </header>
-
     <div id="status-container" class="status-container">
       <div id="waiting-state" class="state waiting-state">
+        <div class="upload-container">
+          <input type="file" id="file-input" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp" style="display: none;">
+          <div class="upload-area">
+            <button id="upload-button" class="upload-button">
+              <img id="upload-icon" src="icons/icon-upload.svg" alt="Upload" class="upload-icon">
+              <span>Upload image</span>
+            </button>
+            <div class="upload-instructions">
+              <p class="upload-text">Drag & drop here</p>
+              <p class="upload-text">or click and Ctrl+V / ⌘+V</p>
+            </div>
+          </div>
+        </div>
         <div class="toggle-container">
           <span class="toggle-label">Screenshot to text</span>
           <label class="toggle-switch">

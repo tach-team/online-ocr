@@ -20,12 +20,66 @@ const newSelectionButton = document.getElementById('new-selection-button')!;
 const retryButton = document.getElementById('retry-button')!;
 const errorMessage = document.getElementById('error-message')!;
 const screenshotToggle = document.getElementById('screenshot-toggle') as HTMLInputElement;
+const fileInput = document.getElementById('file-input') as HTMLInputElement;
+const uploadButton = document.getElementById('upload-button')!;
+const uploadIcon = document.getElementById('upload-icon') as HTMLImageElement;
+
+// Поддерживаемые форматы изображений
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/bmp',
+];
+
+const ALLOWED_EXTENSIONS = [
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'webp',
+  'bmp',
+];
 
 function showState(state: State['type']): void {
   waitingState.style.display = state === 'waiting' ? 'block' : 'none';
   processingState.style.display = state === 'processing' ? 'block' : 'none';
   resultState.style.display = state === 'result' ? 'block' : 'none';
   errorState.style.display = state === 'error' ? 'block' : 'none';
+}
+
+// Валидация формата файла
+function validateImageFile(file: File): { valid: boolean; error?: string } {
+  // Проверка по MIME-типу
+  if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
+    // Дополнительная проверка по расширению (на случай, если MIME-тип не определен)
+    const fileName = file.name.toLowerCase();
+    const extension = fileName.split('.').pop();
+    if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
+      return {
+        valid: false,
+        error: `Неподдерживаемый формат файла. Поддерживаемые форматы: ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}`,
+      };
+    }
+  }
+  return { valid: true };
+}
+
+// Конвертация File в base64 строку
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result);
+    };
+    reader.onerror = () => {
+      reject(new Error('Ошибка чтения файла'));
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 async function processImage(
@@ -168,6 +222,46 @@ function handleToggleChange(): void {
   }
 }
 
+// Обработчик загрузки файла
+async function handleFileUpload(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  
+  if (!file) {
+    return;
+  }
+
+  // Валидация формата
+  const validation = validateImageFile(file);
+  if (!validation.valid) {
+    errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
+    showState('error');
+    // Сбрасываем input для возможности повторной загрузки того же файла
+    input.value = '';
+    return;
+  }
+
+  try {
+    // Конвертируем файл в base64
+    const imageData = await fileToBase64(file);
+    
+    // Обрабатываем изображение
+    await processImage(imageData);
+  } catch (error) {
+    console.error('File upload error:', error);
+    errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при загрузке файла';
+    showState('error');
+  } finally {
+    // Сбрасываем input для возможности повторной загрузки того же файла
+    input.value = '';
+  }
+}
+
+// Обработчик клика на кнопку загрузки
+function handleUploadButtonClick(): void {
+  fileInput.click();
+}
+
 // Обработчики событий
 copyButton.addEventListener('click', copyToClipboard);
 newSelectionButton.addEventListener('click', requestNewSelection);
@@ -177,6 +271,8 @@ retryButton.addEventListener('click', () => {
   }
 });
 screenshotToggle.addEventListener('change', handleToggleChange);
+uploadButton.addEventListener('click', handleUploadButtonClick);
+fileInput.addEventListener('change', handleFileUpload);
 
 // Слушаем сообщения от content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -215,6 +311,12 @@ window.addEventListener('beforeunload', () => {
 
 // Инициализация при загрузке
 showState('waiting');
+
+// Устанавливаем правильный путь к иконке загрузки
+if (uploadIcon) {
+  uploadIcon.src = chrome.runtime.getURL('icons/icon-upload.svg');
+}
+
 // Активируем overlay при загрузке, если свитчер включен
 if (screenshotToggle && screenshotToggle.checked) {
   // Небольшая задержка для обеспечения загрузки content script
