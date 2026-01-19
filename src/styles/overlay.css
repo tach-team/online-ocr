@@ -51,3 +51,24 @@
     stroke-dashoffset: -10;
   }
 }
+
+.ocr-guide {
+  position: absolute;
+  pointer-events: none;
+  display: none;
+  z-index: 1000000;
+}
+
+.ocr-guide-vertical {
+  top: 0;
+  width: 1px;
+  height: 100%;
+  border-left: 1px dashed white;
+}
+
+.ocr-guide-horizontal {
+  left: 0;
+  width: 100%;
+  height: 1px;
+  border-top: 1px dashed white;
+}

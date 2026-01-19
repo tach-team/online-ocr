@@ -8,6 +8,8 @@ export interface SelectionRect {
 export class SelectionManager {
   private overlay: HTMLDivElement | null = null;
   private selectionBox: HTMLDivElement | null = null;
+  private verticalGuide: HTMLDivElement | null = null;
+  private horizontalGuide: HTMLDivElement | null = null;
   private isSelecting: boolean = false;
   private startX: number = 0;
   private startY: number = 0;
@@ -28,6 +30,16 @@ export class SelectionManager {
     this.selectionBox.id = 'ocr-selection-box';
     this.selectionBox.className = 'ocr-selection-box';
 
+    // Создаем вертикальную направляющую
+    this.verticalGuide = document.createElement('div');
+    this.verticalGuide.id = 'ocr-vertical-guide';
+    this.verticalGuide.className = 'ocr-guide ocr-guide-vertical';
+
+    // Создаем горизонтальную направляющую
+    this.horizontalGuide = document.createElement('div');
+    this.horizontalGuide.id = 'ocr-horizontal-guide';
+    this.horizontalGuide.className = 'ocr-guide ocr-guide-horizontal';
+
     // Создаем инструкцию
     const instruction = document.createElement('div');
     instruction.id = 'ocr-instruction';
@@ -36,6 +48,8 @@ export class SelectionManager {
 
     this.overlay.appendChild(instruction);
     this.overlay.appendChild(this.selectionBox);
+    this.overlay.appendChild(this.verticalGuide);
+    this.overlay.appendChild(this.horizontalGuide);
     document.body.appendChild(this.overlay);
 
     this.setupEventListeners();
@@ -43,6 +57,51 @@ export class SelectionManager {
 
   private setupEventListeners(): void {
     if (!this.overlay || !this.selectionBox) return;
+
+    // Обновление позиции направляющих и выделения при движении мыши
+    this.overlay.addEventListener('mousemove', (e) => {
+      const rect = this.overlay!.getBoundingClientRect();
+      const currentX = e.clientX - rect.left;
+      const currentY = e.clientY - rect.top;
+
+      // Обновляем позицию направляющих
+      if (this.verticalGuide && this.horizontalGuide) {
+        this.verticalGuide.style.left = `${currentX}px`;
+        this.verticalGuide.style.display = 'block';
+        this.horizontalGuide.style.top = `${currentY}px`;
+        this.horizontalGuide.style.display = 'block';
+      }
+
+      // Обновляем выделение, если идет процесс выделения
+      if (this.isSelecting && this.selectionBox) {
+        const width = Math.abs(currentX - this.startX);
+        const height = Math.abs(currentY - this.startY);
+        const left = Math.min(this.startX, currentX);
+        const top = Math.min(this.startY, currentY);
+
+        this.selectionBox.style.left = `${left}px`;
+        this.selectionBox.style.top = `${top}px`;
+        this.selectionBox.style.width = `${width}px`;
+        this.selectionBox.style.height = `${height}px`;
+
+        this.currentSelection = {
+          x: left,
+          y: top,
+          width,
+          height,
+        };
+      }
+    });
+
+    // Скрываем направляющие при выходе курсора за пределы overlay
+    this.overlay.addEventListener('mouseleave', () => {
+      if (this.verticalGuide) {
+        this.verticalGuide.style.display = 'none';
+      }
+      if (this.horizontalGuide) {
+        this.horizontalGuide.style.display = 'none';
+      }
+    });
 
     // Начало выделения
     this.overlay.addEventListener('mousedown', (e) => {
@@ -57,32 +116,6 @@ export class SelectionManager {
       this.selectionBox!.style.top = `${this.startY}px`;
       this.selectionBox!.style.width = '0px';
       this.selectionBox!.style.height = '0px';
-    });
-
-    // Перемещение мыши при выделении
-    this.overlay.addEventListener('mousemove', (e) => {
-      if (!this.isSelecting || !this.selectionBox) return;
-
-      const rect = this.overlay!.getBoundingClientRect();
-      const currentX = e.clientX - rect.left;
-      const currentY = e.clientY - rect.top;
-
-      const width = Math.abs(currentX - this.startX);
-      const height = Math.abs(currentY - this.startY);
-      const left = Math.min(this.startX, currentX);
-      const top = Math.min(this.startY, currentY);
-
-      this.selectionBox.style.left = `${left}px`;
-      this.selectionBox.style.top = `${top}px`;
-      this.selectionBox.style.width = `${width}px`;
-      this.selectionBox.style.height = `${height}px`;
-
-      this.currentSelection = {
-        x: left,
-        y: top,
-        width,
-        height,
-      };
     });
 
     // Завершение выделения
@@ -166,6 +199,12 @@ export class SelectionManager {
     }
     if (this.selectionBox) {
       this.selectionBox.style.display = 'none';
+    }
+    if (this.verticalGuide) {
+      this.verticalGuide.style.display = 'none';
+    }
+    if (this.horizontalGuide) {
+      this.horizontalGuide.style.display = 'none';
     }
     this.isSelecting = false;
     this.currentSelection = null;
