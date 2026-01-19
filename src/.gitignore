@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+icons/*.png
+!icons/icon.svg
+!icons/README.md
+.cursor/
+.vscode/
