@@ -143,5 +143,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// Функция для деактивации overlay при закрытии sidepanel
+function deactivateOverlay(): void {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    tabs.forEach(tab => {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'DEACTIVATE_OVERLAY',
+        }).catch(() => {
+          // Игнорируем ошибки, если content script не загружен
+        });
+      }
+    });
+  });
+}
+
+// Обработчик закрытия sidepanel через visibilitychange (более надежный для sidepanel)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    deactivateOverlay();
+  }
+});
+
+// Обработчик закрытия sidepanel через beforeunload (дополнительная защита)
+window.addEventListener('beforeunload', () => {
+  deactivateOverlay();
+});
+
 // Инициализация при загрузке
 showState('waiting');

@@ -9,7 +9,7 @@ function init() {
   }
 }
 
-// Обработка сообщений от background script
+// Обработка сообщений от background script и sidepanel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'ACTIVATE_OVERLAY') {
     try {
@@ -20,6 +20,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
     } catch (error) {
       console.error('Error activating overlay:', error);
+      sendResponse({ success: false, error: String(error) });
+    }
+    return true; // Асинхронный ответ
+  }
+
+  if (message.type === 'DEACTIVATE_OVERLAY') {
+    try {
+      selectionManager?.deactivate();
+      sendResponse({ success: true });
+    } catch (error) {
+      console.error('Error deactivating overlay:', error);
       sendResponse({ success: false, error: String(error) });
     }
     return true; // Асинхронный ответ
