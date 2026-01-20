@@ -9,9 +9,10 @@ let currentImageData: string | null = null;
 
 // Элементы DOM
 const waitingState = document.getElementById('waiting-state')!;
-const processingState = document.getElementById('processing-state')!;
 const resultState = document.getElementById('result-state')!;
 const errorState = document.getElementById('error-state')!;
+const uploadArea = document.getElementById('upload-area')!;
+const processingContent = document.getElementById('processing-content')!;
 const processingText = document.getElementById('processing-text')!;
 const progressFill = document.getElementById('progress-fill')!;
 const resultText = document.getElementById('result-text')!;
@@ -44,10 +45,28 @@ const ALLOWED_EXTENSIONS = [
 ];
 
 function showState(state: State['type']): void {
-  waitingState.style.display = state === 'waiting' ? 'block' : 'none';
-  processingState.style.display = state === 'processing' ? 'block' : 'none';
+  // waiting-state остается видимым во время обработки
+  waitingState.style.display = (state === 'waiting' || state === 'processing') ? 'block' : 'none';
   resultState.style.display = state === 'result' ? 'block' : 'none';
   errorState.style.display = state === 'error' ? 'block' : 'none';
+}
+
+// Функция для переключения состояния upload-container в режим обработки
+function setUploadContainerProcessing(imageData: string): void {
+  uploadArea.classList.add('processing');
+  uploadArea.style.setProperty('--processing-bg-image', `url(${imageData})`);
+  processingContent.style.display = 'flex';
+  processingText.textContent = '0%';
+  progressFill.style.width = '0%';
+}
+
+// Функция для возврата upload-container к исходному состоянию
+function resetUploadContainer(): void {
+  uploadArea.classList.remove('processing');
+  uploadArea.style.removeProperty('--processing-bg-image');
+  processingContent.style.display = 'none';
+  processingText.textContent = '';
+  progressFill.style.width = '0%';
 }
 
 // Валидация формата файла
@@ -88,8 +107,7 @@ async function processImage(
   viewport?: ViewportInfo
 ): Promise<void> {
   showState('processing');
-  processingText.textContent = 'Processing...';
-  progressFill.style.width = '0%';
+  setUploadContainerProcessing(imageData);
 
   try {
     let processedImageData = imageData;
@@ -97,11 +115,13 @@ async function processImage(
     // Если есть информация о выделении, обрезаем изображение
     if (selection && viewport) {
       try {
-        // processingText.textContent = 'Обрезка изображения...';
         processedImageData = await cropImage(imageData, selection, viewport);
         console.log('Image cropped successfully');
+        // Обновляем фоновое изображение после обрезки
+        setUploadContainerProcessing(processedImageData);
       } catch (cropError) {
         console.error('Crop error:', cropError);
+        resetUploadContainer();
         throw new Error(`Ошибка обрезки изображения: ${cropError instanceof Error ? cropError.message : String(cropError)}`);
       }
     }
@@ -110,33 +130,34 @@ async function processImage(
 
     // Инициализируем OCR при первой загрузке
     try {
-      // processingText.textContent = 'Инициализация OCR...';
       await initializeOCR();
       console.log('OCR initialized');
     } catch (initError) {
       console.error('OCR initialization error:', initError);
+      resetUploadContainer();
       throw new Error(`Ошибка инициализации OCR: ${initError instanceof Error ? initError.message : String(initError)}`);
     }
 
     // Обрабатываем изображение
     try {
-      // processingText.textContent = 'Распознавание текста...';
-
       const result = await recognizeText(processedImageData, (progress: OCRProgress) => {
         const percent = Math.round(progress.progress * 100);
         progressFill.style.width = `${percent}%`;
         processingText.textContent = `${percent}%`;
       });
 
-      // Показываем результат
+      // Показываем результат и сбрасываем состояние upload-container
+      resetUploadContainer();
       resultText.textContent = result.text || 'Текст не найден';
       showState('result');
     } catch (recognizeError) {
       console.error('Recognition error:', recognizeError);
+      resetUploadContainer();
       throw new Error(`Ошибка распознавания текста: ${recognizeError instanceof Error ? recognizeError.message : String(recognizeError)}`);
     }
   } catch (error) {
     console.error('Processing error:', error);
+    resetUploadContainer();
     let errorText = 'Неизвестная ошибка';
     if (error instanceof Error) {
       errorText = error.message || error.toString() || 'Неизвестная ошибка';
@@ -176,6 +197,7 @@ function requestNewSelection(): void {
       chrome.tabs.sendMessage(tabs[0].id, {
         type: 'ACTIVATE_OVERLAY',
       });
+      resetUploadContainer();
       showState('waiting');
       // Включаем свитчер при запросе новой области
       if (screenshotToggle) {
