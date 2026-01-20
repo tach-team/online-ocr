@@ -88,7 +88,7 @@ async function processImage(
   viewport?: ViewportInfo
 ): Promise<void> {
   showState('processing');
-  processingText.textContent = 'Подготовка изображения...';
+  processingText.textContent = 'Processing...';
   progressFill.style.width = '0%';
 
   try {
@@ -97,7 +97,7 @@ async function processImage(
     // Если есть информация о выделении, обрезаем изображение
     if (selection && viewport) {
       try {
-        processingText.textContent = 'Обрезка изображения...';
+        // processingText.textContent = 'Обрезка изображения...';
         processedImageData = await cropImage(imageData, selection, viewport);
         console.log('Image cropped successfully');
       } catch (cropError) {
@@ -110,7 +110,7 @@ async function processImage(
 
     // Инициализируем OCR при первой загрузке
     try {
-      processingText.textContent = 'Инициализация OCR...';
+      // processingText.textContent = 'Инициализация OCR...';
       await initializeOCR();
       console.log('OCR initialized');
     } catch (initError) {
@@ -120,12 +120,12 @@ async function processImage(
 
     // Обрабатываем изображение
     try {
-      processingText.textContent = 'Распознавание текста...';
+      // processingText.textContent = 'Распознавание текста...';
 
       const result = await recognizeText(processedImageData, (progress: OCRProgress) => {
         const percent = Math.round(progress.progress * 100);
         progressFill.style.width = `${percent}%`;
-        processingText.textContent = `Обработка: ${percent}%`;
+        processingText.textContent = `${percent}%`;
       });
 
       // Показываем результат
