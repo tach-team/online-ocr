@@ -16,7 +16,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "tesseract.js": "^5.0.4"
+    "tesseract.js": "^5.0.4",
+    "pdfjs-dist": "^4.4.168"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",

@@ -1,5 +1,6 @@
 import { recognizeText, initializeOCR, OCRProgress } from './utils/ocr';
 import { cropImage, SelectionRect, ViewportInfo } from './utils/image-crop';
+import { loadPdfFromFile, renderPdfPageToDataUrl, type PDFDocumentProxy } from './utils/pdf';
 
 interface State {
   type: 'waiting' | 'processing' | 'result' | 'error';
@@ -43,6 +44,13 @@ const ALLOWED_EXTENSIONS = [
   'bmp',
 ];
 
+const PDF_MIME_TYPE = 'application/pdf';
+const PDF_EXTENSION = 'pdf';
+
+// Ограничения для PDF
+const MAX_PDF_PAGES = 30;
+const MAX_PDF_FILE_SIZE_MB = 25;
+
 function showState(state: State['type']): void {
   waitingState.style.display = state === 'waiting' ? 'block' : 'none';
   processingState.style.display = state === 'processing' ? 'block' : 'none';
@@ -50,7 +58,17 @@ function showState(state: State['type']): void {
   errorState.style.display = state === 'error' ? 'block' : 'none';
 }
 
-// Валидация формата файла
+function isPdfFile(file: File): boolean {
+  if (file.type === PDF_MIME_TYPE) {
+    return true;
+  }
+
+  const fileName = file.name.toLowerCase();
+  const extension = fileName.split('.').pop();
+  return extension === PDF_EXTENSION;
+}
+
+// Валидация формата файла (картинки)
 function validateImageFile(file: File): { valid: boolean; error?: string } {
   // Проверка по MIME-типу
   if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
@@ -222,6 +240,86 @@ function handleToggleChange(): void {
   }
 }
 
+async function processPdfFile(file: File): Promise<void> {
+  showState('processing');
+  processingText.textContent = 'Загрузка PDF...';
+  progressFill.style.width = '0%';
+
+  try {
+    // Проверка размера файла
+    const fileSizeMb = file.size / (1024 * 1024);
+    if (fileSizeMb > MAX_PDF_FILE_SIZE_MB) {
+      throw new Error(`Слишком большой PDF-файл. Максимальный размер: ${MAX_PDF_FILE_SIZE_MB} МБ`);
+    }
+
+    let doc: PDFDocumentProxy;
+
+    try {
+      doc = await loadPdfFromFile(file);
+    } catch (e) {
+      throw new Error('Не удалось открыть PDF. Файл может быть повреждён.');
+    }
+
+    const totalPages = doc.numPages;
+    if (totalPages === 0) {
+      throw new Error('PDF не содержит страниц.');
+    }
+
+    const pagesToProcess = Math.min(totalPages, MAX_PDF_PAGES);
+    let combinedText = '';
+
+    // Инициализируем OCR один раз для всех страниц
+    processingText.textContent = 'Инициализация OCR...';
+    await initializeOCR();
+
+    for (let pageNumber = 1; pageNumber <= pagesToProcess; pageNumber++) {
+      processingText.textContent = `Подготовка страницы ${pageNumber} из ${pagesToProcess}...`;
+
+      const pageImageData = await renderPdfPageToDataUrl(doc, pageNumber, 2);
+
+      await new Promise<void>((resolve, reject) => {
+        recognizeText(pageImageData, (progress: OCRProgress) => {
+          const overallProgress = ((pageNumber - 1) + (progress.progress || 0)) / pagesToProcess;
+          const percent = Math.round(overallProgress * 100);
+          progressFill.style.width = `${percent}%`;
+          processingText.textContent = `Обработка страницы ${pageNumber} из ${pagesToProcess}: ${percent}%`;
+        }).then((result) => {
+          const trimmed = result.text || '';
+          if (trimmed) {
+            if (combinedText) {
+              combinedText += '\n\n';
+            }
+            combinedText += `--- Страница ${pageNumber} ---\n\n${trimmed}`;
+          }
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+      });
+    }
+
+    if (!combinedText) {
+      combinedText = 'Текст не найден в документе';
+    }
+
+    resultText.textContent = combinedText;
+    showState('result');
+  } catch (error) {
+    console.error('PDF processing error:', error);
+    let errorText = 'Неизвестная ошибка при обработке PDF';
+    if (error instanceof Error) {
+      errorText = error.message || error.toString() || errorText;
+    } else if (error) {
+      errorText = String(error) || errorText;
+    }
+    if (!errorText || errorText === 'undefined' || errorText === 'null') {
+      errorText = 'Произошла неизвестная ошибка при обработке PDF';
+    }
+    errorMessage.textContent = errorText;
+    showState('error');
+  }
+}
+
 // Обработчик загрузки файла
 async function handleFileUpload(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
@@ -231,22 +329,24 @@ async function handleFileUpload(event: Event): Promise<void> {
     return;
   }
 
-  // Валидация формата
-  const validation = validateImageFile(file);
-  if (!validation.valid) {
-    errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
-    showState('error');
-    // Сбрасываем input для возможности повторной загрузки того же файла
-    input.value = '';
-    return;
-  }
-
   try {
-    // Конвертируем файл в base64
-    const imageData = await fileToBase64(file);
-    
-    // Обрабатываем изображение
-    await processImage(imageData);
+    if (isPdfFile(file)) {
+      await processPdfFile(file);
+    } else {
+      // Валидация формата изображения
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
+        showState('error');
+        return;
+      }
+
+      // Конвертируем файл в base64
+      const imageData = await fileToBase64(file);
+      
+      // Обрабатываем изображение
+      await processImage(imageData);
+    }
   } catch (error) {
     console.error('File upload error:', error);
     errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при загрузке файла';

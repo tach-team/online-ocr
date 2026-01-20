@@ -53,6 +53,11 @@ export default defineConfig({
           src: 'node_modules/tesseract.js-core/tesseract-core-lstm.wasm',
           dest: 'core',
         },
+        {
+          src: 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
+          dest: '.',
+          rename: 'pdf.worker.min.mjs',
+        },
       ],
     }),
   ],
