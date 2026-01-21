@@ -38,14 +38,12 @@
         </div>
       </div>
 
-
       <div id="result-state" class="state result-state" style="display: none;">
-        <div class="result-header">
-          <h2>Распознанный текст:</h2>
-          <button id="copy-button" class="copy-button">📋 Копировать</button>
+        <textarea id="result-text" class="result-text"></textarea>
+        <div class="result-buttons">
+          <button id="back-button" class="back-button"><span>←</span> Back to main</button>
+          <button id="copy-button" class="copy-button">Copy Text</button>
         </div>
-        <div id="result-text" class="result-text"></div>
-        <button id="new-selection-button" class="new-selection-button">Выбрать новую область</button>
       </div>
 
       <div id="error-state" class="state error-state" style="display: none;">

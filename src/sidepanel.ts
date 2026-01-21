@@ -6,6 +6,7 @@ interface State {
 }
 
 let currentImageData: string | null = null;
+let originalRecognizedText: string = '';
 
 // Элементы DOM
 const waitingState = document.getElementById('waiting-state')!;
@@ -15,9 +16,9 @@ const uploadArea = document.getElementById('upload-area')!;
 const processingContent = document.getElementById('processing-content')!;
 const processingText = document.getElementById('processing-text')!;
 const progressFill = document.getElementById('progress-fill')!;
-const resultText = document.getElementById('result-text')!;
+const resultText = document.getElementById('result-text') as HTMLTextAreaElement;
 const copyButton = document.getElementById('copy-button')!;
-const newSelectionButton = document.getElementById('new-selection-button')!;
+const backButton = document.getElementById('back-button')!;
 const retryButton = document.getElementById('retry-button')!;
 const errorMessage = document.getElementById('error-message')!;
 const screenshotToggle = document.getElementById('screenshot-toggle') as HTMLInputElement;
@@ -148,8 +149,14 @@ async function processImage(
 
       // Показываем результат и сбрасываем состояние upload-container
       resetUploadContainer();
-      resultText.textContent = result.text || 'Текст не найден';
+      const recognizedText = result.text || 'Текст не найден';
+      originalRecognizedText = recognizedText;
+      resultText.value = recognizedText;
       showState('result');
+      // Вызываем autoResizeTextarea после того, как элемент стал видимым
+      requestAnimationFrame(() => {
+        autoResizeTextarea();
+      });
     } catch (recognizeError) {
       console.error('Recognition error:', recognizeError);
       resetUploadContainer();
@@ -172,22 +179,56 @@ async function processImage(
   }
 }
 
+function autoResizeTextarea(): void {
+  // Сбрасываем высоту на auto для корректного расчета scrollHeight
+  resultText.style.height = 'auto';
+  
+  // Вычисляем максимальную доступную высоту с учетом кнопок и отступов
+  const resultStateRect = resultState.getBoundingClientRect();
+  const buttonsRect = resultState.querySelector('.result-buttons')?.getBoundingClientRect();
+  const buttonsHeight = buttonsRect ? buttonsRect.height + 16 : 60; // 16px - margin-bottom textarea
+  const paddingTop = parseInt(getComputedStyle(resultState).paddingTop || '0', 10);
+  const paddingBottom = parseInt(getComputedStyle(resultState).paddingBottom || '0', 10);
+  const maxHeight = resultStateRect.height - buttonsHeight - paddingTop - paddingBottom;
+  
+  // Устанавливаем высоту, но не превышающую максимальную доступную
+  const contentHeight = resultText.scrollHeight;
+  const targetHeight = Math.min(contentHeight, maxHeight);
+  
+  resultText.style.height = `${targetHeight}px`;
+  
+  // Если контент превышает доступное пространство, включаем прокрутку
+  if (contentHeight > maxHeight) {
+    resultText.style.overflowY = 'auto';
+  } else {
+    resultText.style.overflowY = 'hidden';
+  }
+}
+
 async function copyToClipboard(): Promise<void> {
-  const text = resultText.textContent || '';
+  const text = resultText.value || '';
   if (!text) return;
 
   try {
     await navigator.clipboard.writeText(text);
-    copyButton.textContent = '✓ Скопировано!';
+    copyButton.textContent = '✓ Copied!';
     copyButton.classList.add('copied');
     setTimeout(() => {
-      copyButton.textContent = '📋 Копировать';
+      copyButton.textContent = 'Copy Text';
       copyButton.classList.remove('copied');
     }, 2000);
   } catch (error) {
     console.error('Copy error:', error);
     alert('Не удалось скопировать текст');
   }
+}
+
+function backToMain(): void {
+  // Сбрасываем текст к исходному распознанному тексту
+  resultText.value = originalRecognizedText;
+  autoResizeTextarea();
+  resetUploadContainer();
+  showState('waiting');
 }
 
 function requestNewSelection(): void {
@@ -286,7 +327,8 @@ function handleUploadButtonClick(): void {
 
 // Обработчики событий
 copyButton.addEventListener('click', copyToClipboard);
-newSelectionButton.addEventListener('click', requestNewSelection);
+backButton.addEventListener('click', backToMain);
+resultText.addEventListener('input', autoResizeTextarea);
 retryButton.addEventListener('click', () => {
   if (currentImageData) {
     processImage(currentImageData); // При повторе используем уже обрезанное изображение
