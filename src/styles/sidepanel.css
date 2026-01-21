@@ -129,6 +129,11 @@ body {
   background-color: #FFFAFB;
 }
 
+.upload-area.active:not(.processing) {
+  border: 1px solid #EE444D;
+  background-color: #FFFAFB;
+}
+
 .upload-area.processing {
   position: relative;
   background-color: #F8F8FC;
@@ -194,6 +199,10 @@ body {
   color: #8B8B9D;
   margin: 0;
   font-family: inherit;
+}
+
+.upload-area.active .keyboard-shortcut {
+  color: #FF4954;
 }
 
 .upload-area.processing .upload-button,

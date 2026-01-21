@@ -7,6 +7,7 @@ interface State {
 
 let currentImageData: string | null = null;
 let originalRecognizedText: string = '';
+let isClipboardActive: boolean = false;
 
 // Элементы DOM
 const waitingState = document.getElementById('waiting-state')!;
@@ -102,6 +103,21 @@ function fileToBase64(file: File): Promise<string> {
       reject(new Error('Ошибка чтения файла'));
     };
     reader.readAsDataURL(file);
+  });
+}
+
+// Конвертация Blob в base64 строку
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result);
+    };
+    reader.onerror = () => {
+      reject(new Error('Ошибка чтения изображения из буфера обмена'));
+    };
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -329,8 +345,125 @@ async function handleFileUpload(event: Event): Promise<void> {
 }
 
 // Обработчик клика на кнопку загрузки
-function handleUploadButtonClick(): void {
+function handleUploadButtonClick(event: MouseEvent): void {
+  event.stopPropagation(); // Предотвращаем всплытие события до upload-area
   fileInput.click();
+}
+
+// Функции для управления активацией буфера обмена
+function activateClipboard(): void {
+  isClipboardActive = true;
+  uploadArea.classList.add('active');
+}
+
+function deactivateClipboard(): void {
+  isClipboardActive = false;
+  uploadArea.classList.remove('active');
+}
+
+// Обработчик клика на область загрузки для активации буфера обмена
+function handleUploadAreaClick(event: MouseEvent): void {
+  // Игнорируем клик, если это клик на кнопку загрузки
+  const target = event.target as HTMLElement;
+  if (target.closest('.upload-button')) {
+    return;
+  }
+  
+  // Переключаем состояние активации
+  if (isClipboardActive) {
+    deactivateClipboard();
+  } else {
+    activateClipboard();
+  }
+}
+
+// Обработчик клика вне блока для деактивации (в пределах sidepanel)
+function handleClickOutside(event: MouseEvent): void {
+  const target = event.target as HTMLElement;
+  // Если клик не внутри upload-area и блока активирован, деактивируем
+  if (isClipboardActive && !target.closest('#upload-area')) {
+    deactivateClipboard();
+  }
+}
+
+// Обработчик потери фокуса sidepanel (клик в любом месте браузера)
+function handleWindowBlur(): void {
+  if (isClipboardActive) {
+    deactivateClipboard();
+  }
+}
+
+// Обработчик изменения видимости sidepanel
+function handleVisibilityChange(): void {
+  if (document.visibilityState === 'hidden') {
+    // Деактивируем буфер обмена, если он был активирован
+    if (isClipboardActive) {
+      deactivateClipboard();
+    }
+    // Деактивируем overlay
+    deactivateOverlay();
+  }
+}
+
+// Обработчик вставки изображения из буфера обмена
+async function handlePaste(event: ClipboardEvent): Promise<void> {
+  // Проверяем, что блок активирован
+  if (!isClipboardActive) {
+    return;
+  }
+
+  // Предотвращаем стандартное поведение
+  event.preventDefault();
+  event.stopPropagation();
+
+  const clipboardData = event.clipboardData;
+  if (!clipboardData) {
+    return;
+  }
+
+  // Ищем изображение в буфере обмена
+  const items = clipboardData.items;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    
+    // Проверяем, является ли элемент изображением
+    if (item.type.startsWith('image/')) {
+      const blob = item.getAsFile();
+      if (!blob) {
+        continue;
+      }
+
+      // Создаем временный File объект для валидации
+      const tempFile = new File([blob], `clipboard-image.${item.type.split('/')[1]}`, { type: item.type });
+      
+      // Валидация формата
+      const validation = validateImageFile(tempFile);
+      if (!validation.valid) {
+        errorMessage.textContent = validation.error || 'Неподдерживаемый формат изображения из буфера обмена';
+        showState('error');
+        deactivateClipboard();
+        return;
+      }
+
+      try {
+        // Конвертируем blob в base64
+        const imageData = await blobToBase64(blob);
+        
+        // Обрабатываем изображение
+        await processImage(imageData);
+        
+        // Деактивируем блок после успешной вставки
+        deactivateClipboard();
+      } catch (error) {
+        console.error('Paste error:', error);
+        errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при вставке изображения из буфера обмена';
+        showState('error');
+        deactivateClipboard();
+      }
+      
+      return; // Обработали первое найденное изображение
+    }
+  }
 }
 
 // Drag & Drop функционал
@@ -444,6 +577,11 @@ retryButton.addEventListener('click', () => {
 screenshotToggle.addEventListener('change', handleToggleChange);
 uploadButton.addEventListener('click', handleUploadButtonClick);
 fileInput.addEventListener('change', handleFileUpload);
+uploadArea.addEventListener('click', handleUploadAreaClick);
+document.addEventListener('click', handleClickOutside);
+document.addEventListener('paste', handlePaste);
+window.addEventListener('blur', handleWindowBlur);
+document.addEventListener('visibilitychange', handleVisibilityChange);
 
 // Drag & Drop события
 document.body.addEventListener('dragenter', handleDragEnter);
@@ -473,13 +611,6 @@ function deactivateOverlay(): void {
     });
   });
 }
-
-// Обработчик закрытия sidepanel через visibilitychange (более надежный для sidepanel)
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') {
-    deactivateOverlay();
-  }
-});
 
 // Обработчик закрытия sidepanel через beforeunload (дополнительная защита)
 window.addEventListener('beforeunload', () => {
