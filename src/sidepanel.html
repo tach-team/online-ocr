@@ -8,56 +8,68 @@
 </head>
 <body>
   <div class="container">
-    <div id="status-container" class="status-container">
-      <div id="waiting-state" class="state waiting-state">
-        <div class="upload-container">
-          <input type="file" id="file-input" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp" style="display: none;">
-          <div class="upload-area" id="upload-area">
-            <button id="upload-button" class="upload-button">
-              <img id="upload-icon" src="icons/icon-upload.svg" alt="Upload" class="upload-icon">
-              <span>Upload image</span>
-            </button>
-            <div class="upload-instructions">
-              <p class="upload-text">Drag & drop here</p>
-              <p class="upload-text">or click and Ctrl+V / ⌘+V</p>
-            </div>
-            <div class="processing-content" id="processing-content" style="display: none;">
-              <p id="processing-text" class="processing-text"></p>
-              <div class="progress-bar">
-                <div id="progress-fill" class="progress-fill"></div>
+    <div class="container-inner">
+      <div id="status-container" class="status-container">
+        <div id="waiting-state" class="state waiting-state">
+          <div class="upload-container">
+            <input type="file" id="file-input" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp" style="display: none;">
+            <div class="upload-area" id="upload-area">
+              <button id="upload-button" class="upload-button">
+                <img id="upload-icon" src="icons/icon-upload.svg" alt="Upload" class="upload-icon">
+                <span>Upload image</span>
+              </button>
+              <div class="upload-instructions">
+                <p class="upload-text">Drag & drop here</p>
+                <p class="upload-text">or click and Ctrl+V / ⌘+V</p>
+              </div>
+              <div class="processing-content" id="processing-content" style="display: none;">
+                <p id="processing-text" class="processing-text"></p>
+                <div class="progress-bar">
+                  <div id="progress-fill" class="progress-fill"></div>
+                </div>
               </div>
             </div>
           </div>
+          <div class="toggle-container">
+            <span class="toggle-label">Screenshot to text</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="screenshot-toggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
         </div>
-        <div class="toggle-container">
-          <span class="toggle-label">Screenshot to text</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="screenshot-toggle" checked>
-            <span class="toggle-slider"></span>
-          </label>
+
+        <div id="result-state" class="state result-state" style="display: none;">
+          <textarea id="result-text" class="result-text"></textarea>
+          <div class="result-buttons">
+            <button id="back-button" class="back-button"><span>←</span> Back to main</button>
+            <button id="copy-button" class="copy-button">Copy Text</button>
+          </div>
+        </div>
+
+        <div id="error-state" class="state error-state" style="display: none;">
+          <div class="icon">⚠️</div>
+          <p id="error-message">Произошла ошибка при обработке</p>
+          <button id="retry-button" class="retry-button">Попробовать снова</button>
         </div>
       </div>
-
-      <div id="result-state" class="state result-state" style="display: none;">
-        <textarea id="result-text" class="result-text"></textarea>
-        <div class="result-buttons">
-          <button id="back-button" class="back-button"><span>←</span> Back to main</button>
-          <button id="copy-button" class="copy-button">Copy Text</button>
-        </div>
-      </div>
-
-      <div id="error-state" class="state error-state" style="display: none;">
-        <div class="icon">⚠️</div>
-        <p id="error-message">Произошла ошибка при обработке</p>
-        <button id="retry-button" class="retry-button">Попробовать снова</button>
+      
+      <div class="feature-request-content">
+        <a href="#" id="feature-request-link" class="feature-request-link">
+          <div class="feature-request-icon" aria-hidden="true"></div>
+          <span>Have a feature request?</span>  
+        </a>
       </div>
     </div>
-    
-    <div class="feature-request-content">
-      <a href="#" id="feature-request-link" class="feature-request-link">
-        <div class="feature-request-icon" aria-hidden="true"></div>
-        <span>Have a feature request?</span>  
-      </a>
+  </div>
+
+  <div class="drag-overlay" id="drag-overlay">
+    <div class="drag-overlay-content">
+      <div class="drag-overlay-icon">
+        <img id="drag-upload-icon" src="icons/icon-upload.svg" alt="Upload">
+      </div>
+      <p class="drag-overlay-title">Drop the image here</p>
+      <p class="drag-overlay-subtitle">Release to convert it to text</p>
     </div>
   </div>
 

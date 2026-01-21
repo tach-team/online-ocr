@@ -5,7 +5,7 @@
 }
 
 body {
-  font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: "Mona Sans", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background-color: #F8F8FC;
   color: #333;
   line-height: 24px;
@@ -14,6 +14,12 @@ body {
 .container {
   width: 100%;
   height: 100vh;
+  padding: 5px;
+}
+
+.container-inner {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -238,7 +244,6 @@ body {
 
 .result-text {
   width: 100%;
-  background-color: #F8F8FC;
   border: 1px solid #E7E7EF;
   border-radius: 4px;
   padding: 15px 20px;
@@ -388,4 +393,71 @@ body {
 
 .feature-request-link:hover .feature-request-icon {
   background-color: #EE444D;
+}
+
+/* Drag & Drop Overlay */
+.container.dragging {
+  border: 1px dashed #EE444D;
+  border-radius: 16px;
+  height: 100vh;
+}
+
+.container.dragging .container-inner {
+  filter: blur(4px);
+  background-color: #FFFAFB;
+  height: 100%;
+  transition: filter 0.2s, border 0.2s;
+}
+
+.drag-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drag-overlay.active {
+  display: flex;
+}
+
+.drag-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 55px;
+  background-color: white;
+  border: 1px solid #E7E7EF;
+  border-radius: 4px;
+}
+
+.drag-overlay-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #FF4954;
+  margin-bottom: 5px;
+  border-radius: 4px;
+}
+
+.drag-overlay-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0C0C23;
+  margin: 0;
+}
+
+.drag-overlay-subtitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8B8B9D;
+  margin: 0;
 }

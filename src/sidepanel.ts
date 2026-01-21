@@ -25,6 +25,9 @@ const screenshotToggle = document.getElementById('screenshot-toggle') as HTMLInp
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
 const uploadButton = document.getElementById('upload-button')!;
 const uploadIcon = document.getElementById('upload-icon') as HTMLImageElement;
+const container = document.querySelector('.container')!;
+const dragOverlay = document.getElementById('drag-overlay')!;
+const dragUploadIcon = document.getElementById('drag-upload-icon') as HTMLImageElement;
 
 // Поддерживаемые форматы изображений
 const ALLOWED_MIME_TYPES = [
@@ -330,6 +333,105 @@ function handleUploadButtonClick(): void {
   fileInput.click();
 }
 
+// Drag & Drop функционал
+let dragCounter = 0;
+
+function showDragOverlay(): void {
+  container.classList.add('dragging');
+  dragOverlay.classList.add('active');
+}
+
+function hideDragOverlay(): void {
+  container.classList.remove('dragging');
+  dragOverlay.classList.remove('active');
+}
+
+function hasImageFile(dataTransfer: DataTransfer | null): boolean {
+  if (!dataTransfer) return false;
+  
+  // Проверяем типы файлов
+  if (dataTransfer.types.includes('Files')) {
+    // Проверяем items для более точного определения типа
+    if (dataTransfer.items) {
+      for (let i = 0; i < dataTransfer.items.length; i++) {
+        const item = dataTransfer.items[i];
+        if (item.kind === 'file' && ALLOWED_MIME_TYPES.includes(item.type.toLowerCase())) {
+          return true;
+        }
+      }
+    }
+    // Если items недоступны, допускаем возможность изображения
+    return true;
+  }
+  return false;
+}
+
+function handleDragEnter(event: DragEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  dragCounter++;
+  
+  if (hasImageFile(event.dataTransfer)) {
+    showDragOverlay();
+  }
+}
+
+function handleDragOver(event: DragEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy';
+  }
+}
+
+function handleDragLeave(event: DragEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  dragCounter--;
+  
+  if (dragCounter === 0) {
+    hideDragOverlay();
+  }
+}
+
+async function handleDrop(event: DragEvent): Promise<void> {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  dragCounter = 0;
+  hideDragOverlay();
+  
+  const files = event.dataTransfer?.files;
+  if (!files || files.length === 0) {
+    return;
+  }
+  
+  const file = files[0];
+  
+  // Валидация формата
+  const validation = validateImageFile(file);
+  if (!validation.valid) {
+    errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
+    showState('error');
+    return;
+  }
+  
+  try {
+    // Конвертируем файл в base64
+    const imageData = await fileToBase64(file);
+    
+    // Обрабатываем изображение
+    await processImage(imageData);
+  } catch (error) {
+    console.error('Drop error:', error);
+    errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при загрузке файла';
+    showState('error');
+  }
+}
+
 // Обработчики событий
 copyButton.addEventListener('click', copyToClipboard);
 backButton.addEventListener('click', backToMain);
@@ -342,6 +444,12 @@ retryButton.addEventListener('click', () => {
 screenshotToggle.addEventListener('change', handleToggleChange);
 uploadButton.addEventListener('click', handleUploadButtonClick);
 fileInput.addEventListener('change', handleFileUpload);
+
+// Drag & Drop события
+document.body.addEventListener('dragenter', handleDragEnter);
+document.body.addEventListener('dragover', handleDragOver);
+document.body.addEventListener('dragleave', handleDragLeave);
+document.body.addEventListener('drop', handleDrop);
 
 // Слушаем сообщения от content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -381,9 +489,12 @@ window.addEventListener('beforeunload', () => {
 // Инициализация при загрузке
 showState('waiting');
 
-// Устанавливаем правильный путь к иконке загрузки
+// Устанавливаем правильный путь к иконкам загрузки
 if (uploadIcon) {
   uploadIcon.src = chrome.runtime.getURL('icons/icon-upload.svg');
+}
+if (dragUploadIcon) {
+  dragUploadIcon.src = chrome.runtime.getURL('icons/icon-upload.svg');
 }
 
 // Активируем overlay при загрузке, если свитчер включен
