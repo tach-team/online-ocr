@@ -343,3 +343,50 @@ body {
 .retry-button:hover {
   background-color: #b71c1c;
 }
+
+.feature-request-content {
+  padding: 30px;
+}
+
+.feature-request-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  text-decoration: none;
+  color: #8B8B9D;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: color 0.2s;
+  margin-top: auto;
+}
+
+.feature-request-link:hover {
+  color: #EE444D;
+}
+
+
+.feature-request-link span {
+  text-decoration: underline;
+}
+
+.feature-request-icon {
+  width: 19px;
+  height: 15px;
+  display: block;
+  background-color: #8B8B9D;
+  -webkit-mask-image: url('../icons/icon-mail.svg');
+  mask-image: url('../icons/icon-mail.svg');
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.feature-request-link:hover .feature-request-icon {
+  background-color: #EE444D;
+}

@@ -228,6 +228,11 @@ function backToMain(): void {
   resultText.value = originalRecognizedText;
   autoResizeTextarea();
   resetUploadContainer();
+  // Выключаем тогглер Screenshot to text
+  if (screenshotToggle) {
+    screenshotToggle.checked = false;
+    deactivateOverlayFromToggle();
+  }
   showState('waiting');
 }
 
