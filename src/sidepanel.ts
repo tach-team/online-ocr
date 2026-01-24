@@ -247,10 +247,10 @@ function backToMain(): void {
   resultText.value = originalRecognizedText;
   autoResizeTextarea();
   resetUploadContainer();
-  // Выключаем тогглер Screenshot to text
+  // Оставляем тогглер включённым и активируем overlay для немедленного выделения
   if (screenshotToggle) {
-    screenshotToggle.checked = false;
-    deactivateOverlayFromToggle();
+    screenshotToggle.checked = true;
+    activateOverlay();
   }
   showState('waiting');
 }
