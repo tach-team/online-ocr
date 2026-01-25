@@ -544,7 +544,6 @@ body {
 .feature-request-attachments {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .feature-request-attachment {
