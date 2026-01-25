@@ -60,6 +60,55 @@
           <span>Have a feature request?</span>  
         </a>
       </div>
+
+      <div id="feature-request-form" class="feature-request-form" style="display: none;">
+        <h2 class="feature-request-form-title">Have a feature request?</h2>
+        <p class="feature-request-form-description">Please tell us what feature you need or what we could improve.</p>
+        
+        <div class="feature-request-form-fields">
+          <div class="feature-request-input-wrapper">
+            <input 
+              type="email" 
+              id="feature-request-email" 
+              class="feature-request-input" 
+              placeholder="Enter your email"
+            >
+          </div>
+          
+          <div class="feature-request-input-wrapper">
+            <textarea 
+              id="feature-request-message" 
+              class="feature-request-textarea" 
+              placeholder="Enter your massage"
+              rows="6"
+            ></textarea>
+          </div>
+          
+          <input 
+            type="file" 
+            id="feature-request-file-input" 
+            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp" 
+            multiple
+            style="display: none;"
+          >
+          
+          <button id="feature-request-attach-button" class="feature-request-attach-button">
+            <div class="feature-request-attach-icon" aria-hidden="true"></div>
+            <span>Attach file</span>
+          </button>
+          
+          <div id="feature-request-attachments" class="feature-request-attachments"></div>
+        </div>
+        
+        <div class="feature-request-form-buttons">
+          <button id="feature-request-back-button" class="feature-request-back-button">
+            <span>←</span> Back
+          </button>
+          <button id="feature-request-send-button" class="feature-request-send-button">
+            Send
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

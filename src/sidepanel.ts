@@ -635,3 +635,311 @@ if (screenshotToggle && screenshotToggle.checked) {
     activateOverlay();
   }, 100);
 }
+
+// Feature Request Form
+interface AttachedFile {
+  file: File;
+  preview: string; // base64 data URL
+  id: string; // уникальный ID для удаления
+}
+
+const featureRequestLink = document.getElementById('feature-request-link');
+const featureRequestForm = document.getElementById('feature-request-form');
+const featureRequestBackButton = document.getElementById('feature-request-back-button');
+const featureRequestSendButton = document.getElementById('feature-request-send-button');
+const featureRequestAttachButton = document.getElementById('feature-request-attach-button');
+const featureRequestFileInput = document.getElementById('feature-request-file-input') as HTMLInputElement;
+const featureRequestAttachments = document.getElementById('feature-request-attachments');
+const statusContainer = document.getElementById('status-container');
+const featureRequestContent = document.querySelector('.feature-request-content');
+
+let attachedFiles: AttachedFile[] = [];
+const MAX_ATTACHMENTS = 3;
+
+function generateFileId(): string {
+  return `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function createFilePreview(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(reader.result as string);
+    };
+    reader.onerror = () => {
+      reject(new Error('Ошибка чтения файла'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAttachments(): void {
+  if (!featureRequestAttachments) return;
+
+  featureRequestAttachments.innerHTML = '';
+
+  attachedFiles.forEach((attachedFile) => {
+    const attachmentElement = document.createElement('div');
+    attachmentElement.className = 'feature-request-attachment';
+    attachmentElement.dataset.fileId = attachedFile.id;
+
+    const previewElement = document.createElement('div');
+    previewElement.className = 'feature-request-attachment-preview';
+
+    if (attachedFile.preview) {
+      const img = document.createElement('img');
+      img.src = attachedFile.preview;
+      img.alt = attachedFile.file.name;
+      previewElement.appendChild(img);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'feature-request-attachment-preview-placeholder';
+      placeholder.textContent = 'IMG';
+      previewElement.appendChild(placeholder);
+    }
+
+    const nameElement = document.createElement('div');
+    nameElement.className = 'feature-request-attachment-name';
+    nameElement.textContent = attachedFile.file.name;
+    nameElement.title = attachedFile.file.name;
+
+    const removeButton = document.createElement('button');
+    removeButton.className = 'feature-request-attachment-remove';
+    removeButton.type = 'button';
+    removeButton.setAttribute('aria-label', 'Удалить файл');
+    removeButton.addEventListener('click', () => {
+      removeAttachment(attachedFile.id);
+    });
+
+    attachmentElement.appendChild(previewElement);
+    attachmentElement.appendChild(nameElement);
+    attachmentElement.appendChild(removeButton);
+
+    featureRequestAttachments.appendChild(attachmentElement);
+  });
+}
+
+function removeAttachment(fileId: string): void {
+  attachedFiles = attachedFiles.filter((file) => file.id !== fileId);
+  renderAttachments();
+}
+
+async function handleFileAttach(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const files = input.files;
+
+  if (!files || files.length === 0) {
+    return;
+  }
+
+  // Проверяем, сколько файлов можно добавить
+  const availableSlots = MAX_ATTACHMENTS - attachedFiles.length;
+  if (availableSlots <= 0) {
+    alert(`Можно прикрепить максимум ${MAX_ATTACHMENTS} изображения`);
+    input.value = '';
+    return;
+  }
+
+  // Обрабатываем файлы (не более доступных слотов)
+  const filesToProcess = Array.from(files).slice(0, availableSlots);
+
+  for (const file of filesToProcess) {
+    // Валидация формата
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      alert(validation.error || 'Неподдерживаемый формат файла');
+      continue;
+    }
+
+    try {
+      // Создаем превью
+      const preview = await createFilePreview(file);
+
+      // Добавляем файл в массив
+      const attachedFile: AttachedFile = {
+        file,
+        preview,
+        id: generateFileId(),
+      };
+
+      attachedFiles.push(attachedFile);
+    } catch (error) {
+      console.error('Ошибка при создании превью:', error);
+      alert('Ошибка при обработке файла');
+    }
+  }
+
+  // Обновляем отображение
+  renderAttachments();
+
+  // Сбрасываем input
+  input.value = '';
+}
+
+function showFeatureRequestForm(): void {
+  if (!featureRequestForm || !statusContainer || !featureRequestContent) return;
+
+  featureRequestForm.style.display = 'flex';
+  statusContainer.style.display = 'none';
+  (featureRequestContent as HTMLElement).style.display = 'none';
+  
+  // Обновляем позицию звездочек после показа формы
+  setTimeout(() => {
+    initializeAsterisks();
+  }, 0);
+}
+
+function hideFeatureRequestForm(): void {
+  if (!featureRequestForm || !statusContainer || !featureRequestContent) return;
+
+  featureRequestForm.style.display = 'none';
+  statusContainer.style.display = 'flex';
+  (featureRequestContent as HTMLElement).style.display = 'block';
+
+  // Очищаем форму
+  attachedFiles = [];
+  renderAttachments();
+  const emailInput = document.getElementById('feature-request-email') as HTMLInputElement;
+  const messageTextarea = document.getElementById('feature-request-message') as HTMLTextAreaElement;
+  if (emailInput) emailInput.value = '';
+  if (messageTextarea) messageTextarea.value = '';
+}
+
+function handleFeatureRequestSend(): void {
+  const emailInput = document.getElementById('feature-request-email') as HTMLInputElement;
+  const messageTextarea = document.getElementById('feature-request-message') as HTMLTextAreaElement;
+
+  const email = emailInput?.value || '';
+  const message = messageTextarea?.value || '';
+
+  // Пока только логируем данные (без реальной отправки)
+  console.log('Feature Request Data:', {
+    email,
+    message,
+    attachments: attachedFiles.map((f) => ({
+      name: f.file.name,
+      size: f.file.size,
+      type: f.file.type,
+    })),
+  });
+
+  alert('Форма отправлена (заглушка)');
+}
+
+// Обработчики событий для формы
+if (featureRequestLink) {
+  featureRequestLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showFeatureRequestForm();
+  });
+}
+
+if (featureRequestBackButton) {
+  featureRequestBackButton.addEventListener('click', () => {
+    hideFeatureRequestForm();
+  });
+}
+
+if (featureRequestSendButton) {
+  featureRequestSendButton.addEventListener('click', () => {
+    handleFeatureRequestSend();
+  });
+}
+
+if (featureRequestAttachButton && featureRequestFileInput) {
+  featureRequestAttachButton.addEventListener('click', () => {
+    featureRequestFileInput.click();
+  });
+}
+
+if (featureRequestFileInput) {
+  featureRequestFileInput.addEventListener('change', handleFileAttach);
+}
+
+// Устанавливаем правильный путь к иконке скрепки через CSS переменную
+const attachIconElement = featureRequestAttachButton?.querySelector('.feature-request-attach-icon');
+if (attachIconElement) {
+  const iconUrl = chrome.runtime.getURL('icons/icon-attach.svg');
+  (attachIconElement as HTMLElement).style.setProperty('--attach-icon-url', `url(${iconUrl})`);
+  (attachIconElement as HTMLElement).style.setProperty('-webkit-mask-image', `url(${iconUrl})`);
+  (attachIconElement as HTMLElement).style.setProperty('mask-image', `url(${iconUrl})`);
+}
+
+// Устанавливаем правильный путь к иконке крестика через CSS переменную
+const crossIconUrl = chrome.runtime.getURL('icons/icon-cross.svg');
+document.documentElement.style.setProperty('--cross-icon-url', `url(${crossIconUrl})`);
+
+// Вычисляем позицию звездочки на основе ширины текста плейсхолдера
+function updateAsteriskPosition(element: HTMLInputElement | HTMLTextAreaElement, wrapper: HTMLElement): void {
+  if (!element.value && element.placeholder) {
+    // Получаем вычисленные стили элемента
+    const computedStyle = window.getComputedStyle(element);
+    
+    // Создаем временный элемент для измерения ширины текста плейсхолдера
+    const temp = document.createElement('span');
+    temp.style.cssText = `
+      position: absolute;
+      visibility: hidden;
+      white-space: nowrap;
+      font-size: ${computedStyle.fontSize};
+      font-family: ${computedStyle.fontFamily};
+      font-weight: ${computedStyle.fontWeight};
+      padding: 0;
+      margin: 0;
+    `;
+    temp.textContent = element.placeholder;
+    document.body.appendChild(temp);
+    const width = temp.offsetWidth;
+    document.body.removeChild(temp);
+    
+    // Получаем padding-left элемента
+    const paddingLeft = parseInt(computedStyle.paddingLeft, 10) || 20;
+    
+    // Устанавливаем позицию звездочки (ширина текста + padding + небольшой отступ)
+    wrapper.style.setProperty('--placeholder-width', `${width + paddingLeft + 4}px`);
+  } else {
+    // Скрываем звездочку, если поле заполнено
+    wrapper.style.setProperty('--placeholder-width', '0px');
+  }
+}
+
+// Инициализируем позиционирование звездочек
+function initializeAsterisks(): void {
+  const emailInput = document.getElementById('feature-request-email') as HTMLInputElement;
+  const messageTextarea = document.getElementById('feature-request-message') as HTMLTextAreaElement;
+  const emailWrapper = emailInput?.closest('.feature-request-input-wrapper') as HTMLElement;
+  const messageWrapper = messageTextarea?.closest('.feature-request-input-wrapper') as HTMLElement;
+
+  if (emailInput && emailWrapper) {
+    // Небольшая задержка для корректного вычисления стилей
+    setTimeout(() => updateAsteriskPosition(emailInput, emailWrapper), 0);
+    emailInput.addEventListener('input', () => updateAsteriskPosition(emailInput, emailWrapper));
+    emailInput.addEventListener('focus', () => updateAsteriskPosition(emailInput, emailWrapper));
+    emailInput.addEventListener('blur', () => updateAsteriskPosition(emailInput, emailWrapper));
+  }
+
+  if (messageTextarea && messageWrapper) {
+    setTimeout(() => updateAsteriskPosition(messageTextarea, messageWrapper), 0);
+    messageTextarea.addEventListener('input', () => updateAsteriskPosition(messageTextarea, messageWrapper));
+    messageTextarea.addEventListener('focus', () => updateAsteriskPosition(messageTextarea, messageWrapper));
+    messageTextarea.addEventListener('blur', () => updateAsteriskPosition(messageTextarea, messageWrapper));
+  }
+}
+
+// Инициализируем при загрузке
+initializeAsterisks();
+
+// Обновляем позицию при изменении размера окна
+window.addEventListener('resize', () => {
+  const emailInput = document.getElementById('feature-request-email') as HTMLInputElement;
+  const messageTextarea = document.getElementById('feature-request-message') as HTMLTextAreaElement;
+  const emailWrapper = emailInput?.closest('.feature-request-input-wrapper') as HTMLElement;
+  const messageWrapper = messageTextarea?.closest('.feature-request-input-wrapper') as HTMLElement;
+  
+  if (emailInput && emailWrapper) {
+    updateAsteriskPosition(emailInput, emailWrapper);
+  }
+  if (messageTextarea && messageWrapper) {
+    updateAsteriskPosition(messageTextarea, messageWrapper);
+  }
+});
