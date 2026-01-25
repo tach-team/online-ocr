@@ -545,7 +545,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 20px;
 }
 
 .feature-request-attachment {
@@ -556,6 +555,7 @@ body {
   background-color: #FFFFFF;
   border: 1px solid #E7E7EF;
   border-radius: 4px;
+  margin-top: 20px;
 }
 
 .feature-request-attachment-preview {
