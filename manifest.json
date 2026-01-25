@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Online OCR",
   "version": "1.0.0",
-  "description": "Extract text from images using OCR",
+  "description": "Use online ocr to extract text from images; Instant ocr character recognition online allows extract text from pdf, jpeg, png, photo.",
   "permissions": [
     "activeTab",
     "sidePanel",

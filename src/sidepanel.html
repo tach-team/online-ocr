@@ -42,7 +42,10 @@
         <div id="result-state" class="state result-state" style="display: none;">
           <textarea id="result-text" class="result-text"></textarea>
           <div class="result-buttons">
-            <button id="back-button" class="back-button"><span>←</span> Back to main</button>
+            <button id="back-button" class="back-button">
+              <span class="back-button-icon" aria-hidden="true"></span>
+              Back to main
+            </button>
             <button id="copy-button" class="copy-button">Copy Text</button>
           </div>
         </div>
@@ -102,7 +105,8 @@
         
         <div class="feature-request-form-buttons">
           <button id="feature-request-back-button" class="feature-request-back-button">
-            <span>←</span> Back
+            <span class="feature-request-back-icon" aria-hidden="true"></span>
+            Back
           </button>
           <button id="feature-request-send-button" class="feature-request-send-button">
             Send
