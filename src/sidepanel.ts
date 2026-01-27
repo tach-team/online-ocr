@@ -1,5 +1,6 @@
 import { recognizeText, initializeOCR, OCRProgress } from './utils/ocr';
 import { cropImage, SelectionRect, ViewportInfo } from './utils/image-crop';
+import { validatePdfFile, convertPdfPageToImage } from './utils/pdf-to-image';
 
 interface State {
   type: 'waiting' | 'processing' | 'result' | 'error';
@@ -38,6 +39,7 @@ const ALLOWED_MIME_TYPES = [
   'image/gif',
   'image/webp',
   'image/bmp',
+  'application/pdf',
 ];
 
 const ALLOWED_EXTENSIONS = [
@@ -47,7 +49,11 @@ const ALLOWED_EXTENSIONS = [
   'gif',
   'webp',
   'bmp',
+  'pdf',
 ];
+
+const MAX_PDF_SIZE_MB = 10;
+const MAX_PDF_PAGES = 1;
 
 function showState(state: State['type']): void {
   // waiting-state остается видимым во время обработки
@@ -74,8 +80,25 @@ function resetUploadContainer(): void {
   progressFill.style.width = '0%';
 }
 
-// Валидация формата файла
-function validateImageFile(file: File): { valid: boolean; error?: string } {
+// Проверка, является ли файл PDF
+function isPdfFile(file: File): boolean {
+  if (file.type === 'application/pdf') {
+    return true;
+  }
+  const fileName = file.name.toLowerCase();
+  const extension = fileName.split('.').pop();
+  return extension === 'pdf';
+}
+
+// Валидация формата файла (изображения и PDF)
+async function validateFile(file: File): Promise<{ valid: boolean; error?: string }> {
+  // Если это PDF, используем специальную валидацию
+  if (isPdfFile(file)) {
+    const validation = await validatePdfFile(file, MAX_PDF_SIZE_MB, MAX_PDF_PAGES);
+    return validation;
+  }
+
+  // Валидация изображений (старая логика)
   // Проверка по MIME-типу
   if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
     // Дополнительная проверка по расширению (на случай, если MIME-тип не определен)
@@ -192,6 +215,37 @@ async function processImage(
     }
     if (!errorText || errorText === 'undefined' || errorText === 'null') {
       errorText = 'Произошла неизвестная ошибка при обработке изображения';
+    }
+    errorMessage.textContent = errorText;
+    showState('error');
+  }
+}
+
+// Обработка PDF файла
+async function processPdfFile(file: File): Promise<void> {
+  try {
+    // Валидация PDF
+    const validation = await validatePdfFile(file, MAX_PDF_SIZE_MB, MAX_PDF_PAGES);
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Ошибка валидации PDF');
+    }
+
+    // Конвертируем первую страницу PDF в изображение
+    const imageData = await convertPdfPageToImage(file, 1, 2);
+    
+    // Обрабатываем полученное изображение через существующий pipeline
+    await processImage(imageData);
+  } catch (error) {
+    console.error('PDF processing error:', error);
+    resetUploadContainer();
+    let errorText = 'Неизвестная ошибка при обработке PDF';
+    if (error instanceof Error) {
+      errorText = error.message || error.toString() || errorText;
+    } else if (error) {
+      errorText = String(error) || errorText;
+    }
+    if (!errorText || errorText === 'undefined' || errorText === 'null') {
+      errorText = 'Произошла неизвестная ошибка при обработке PDF файла';
     }
     errorMessage.textContent = errorText;
     showState('error');
@@ -319,7 +373,7 @@ async function handleFileUpload(event: Event): Promise<void> {
   }
 
   // Валидация формата
-  const validation = validateImageFile(file);
+  const validation = await validateFile(file);
   if (!validation.valid) {
     errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
     showState('error');
@@ -329,11 +383,16 @@ async function handleFileUpload(event: Event): Promise<void> {
   }
 
   try {
-    // Конвертируем файл в base64
-    const imageData = await fileToBase64(file);
-    
-    // Обрабатываем изображение
-    await processImage(imageData);
+    // Если это PDF, обрабатываем через processPdfFile
+    if (isPdfFile(file)) {
+      await processPdfFile(file);
+    } else {
+      // Конвертируем файл в base64
+      const imageData = await fileToBase64(file);
+      
+      // Обрабатываем изображение
+      await processImage(imageData);
+    }
   } catch (error) {
     console.error('File upload error:', error);
     errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при загрузке файла';
@@ -421,47 +480,55 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
     return;
   }
 
-  // Ищем изображение в буфере обмена
+  // Ищем изображение или PDF в буфере обмена
   const items = clipboardData.items;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     
-    // Проверяем, является ли элемент изображением
-    if (item.type.startsWith('image/')) {
+    // Проверяем, является ли элемент изображением или PDF
+    if (item.type.startsWith('image/') || item.type === 'application/pdf') {
       const blob = item.getAsFile();
       if (!blob) {
         continue;
       }
 
       // Создаем временный File объект для валидации
-      const tempFile = new File([blob], `clipboard-image.${item.type.split('/')[1]}`, { type: item.type });
+      const fileName = item.type === 'application/pdf' 
+        ? 'clipboard-file.pdf' 
+        : `clipboard-image.${item.type.split('/')[1]}`;
+      const tempFile = new File([blob], fileName, { type: item.type });
       
       // Валидация формата
-      const validation = validateImageFile(tempFile);
+      const validation = await validateFile(tempFile);
       if (!validation.valid) {
-        errorMessage.textContent = validation.error || 'Неподдерживаемый формат изображения из буфера обмена';
+        errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла из буфера обмена';
         showState('error');
         deactivateClipboard();
         return;
       }
 
       try {
-        // Конвертируем blob в base64
-        const imageData = await blobToBase64(blob);
-        
-        // Обрабатываем изображение
-        await processImage(imageData);
+        // Если это PDF, обрабатываем через processPdfFile
+        if (isPdfFile(tempFile)) {
+          await processPdfFile(tempFile);
+        } else {
+          // Конвертируем blob в base64
+          const imageData = await blobToBase64(blob);
+          
+          // Обрабатываем изображение
+          await processImage(imageData);
+        }
         
         // Деактивируем блок после успешной вставки
         deactivateClipboard();
       } catch (error) {
         console.error('Paste error:', error);
-        errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при вставке изображения из буфера обмена';
+        errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при вставке файла из буфера обмена';
         showState('error');
         deactivateClipboard();
       }
       
-      return; // Обработали первое найденное изображение
+      return; // Обработали первый найденный файл
     }
   }
 }
@@ -488,12 +555,15 @@ function hasImageFile(dataTransfer: DataTransfer | null): boolean {
     if (dataTransfer.items) {
       for (let i = 0; i < dataTransfer.items.length; i++) {
         const item = dataTransfer.items[i];
-        if (item.kind === 'file' && ALLOWED_MIME_TYPES.includes(item.type.toLowerCase())) {
-          return true;
+        if (item.kind === 'file') {
+          const mimeType = item.type.toLowerCase();
+          if (ALLOWED_MIME_TYPES.includes(mimeType)) {
+            return true;
+          }
         }
       }
     }
-    // Если items недоступны, допускаем возможность изображения
+    // Если items недоступны, допускаем возможность изображения или PDF
     return true;
   }
   return false;
@@ -545,7 +615,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
   const file = files[0];
   
   // Валидация формата
-  const validation = validateImageFile(file);
+  const validation = await validateFile(file);
   if (!validation.valid) {
     errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
     showState('error');
@@ -553,11 +623,16 @@ async function handleDrop(event: DragEvent): Promise<void> {
   }
   
   try {
-    // Конвертируем файл в base64
-    const imageData = await fileToBase64(file);
-    
-    // Обрабатываем изображение
-    await processImage(imageData);
+    // Если это PDF, обрабатываем через processPdfFile
+    if (isPdfFile(file)) {
+      await processPdfFile(file);
+    } else {
+      // Конвертируем файл в base64
+      const imageData = await fileToBase64(file);
+      
+      // Обрабатываем изображение
+      await processImage(imageData);
+    }
   } catch (error) {
     console.error('Drop error:', error);
     errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при загрузке файла';
@@ -745,7 +820,7 @@ async function handleFileAttach(event: Event): Promise<void> {
 
   for (const file of filesToProcess) {
     // Валидация формата
-    const validation = validateImageFile(file);
+    const validation = await validateFile(file);
     if (!validation.valid) {
       alert(validation.error || 'Неподдерживаемый формат файла');
       continue;
