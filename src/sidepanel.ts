@@ -98,7 +98,7 @@ async function validateFile(file: File): Promise<{ valid: boolean; error?: strin
     return validation;
   }
 
-  // Валидация изображений (старая логика)
+  // Валидация изображений
   // Проверка по MIME-типу
   if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
     // Дополнительная проверка по расширению (на случай, если MIME-тип не определен)
