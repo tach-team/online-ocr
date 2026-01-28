@@ -42,6 +42,12 @@
 
         <div id="result-state" class="state result-state" style="display: none;">
           <textarea id="result-text" class="result-text"></textarea>
+          <div id="result-language" class="detected-language" style="display: none;">
+            <span class="detected-language-label">Auto-detect:</span>
+            <span id="result-detected-language-name" class="detected-language-name"></span>
+            <select id="result-language-select" class="language-select"></select>
+          </div>
+          <div id="language-warning" class="language-warning" style="display: none;"></div>
           <div class="result-buttons">
             <button id="back-button" class="back-button">
               <span class="back-button-icon" aria-hidden="true"></span>

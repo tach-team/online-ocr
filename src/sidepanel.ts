@@ -1,4 +1,10 @@
-import { recognizeText, initializeOCR, OCRProgress } from './utils/ocr';
+import {
+  recognizeText,
+  OCRProgress,
+  SUPPORTED_LANGUAGES,
+  detectLanguageFromImage,
+  DetectedLanguage,
+} from './utils/ocr';
 import { cropImage, SelectionRect, ViewportInfo } from './utils/image-crop';
 import { validatePdfFile, convertPdfPageToImage } from './utils/pdf-to-image';
 
@@ -9,6 +15,9 @@ interface State {
 let currentImageData: string | null = null;
 let originalRecognizedText: string = '';
 let isClipboardActive: boolean = false;
+let detectedLanguageCode: string | null = null;
+let selectedLanguageCode: string | null = null;
+let isLanguageDetectionUncertain: boolean = false;
 
 // Элементы DOM
 const waitingState = document.getElementById('waiting-state')!;
@@ -30,6 +39,10 @@ const uploadIcon = document.getElementById('upload-icon') as HTMLImageElement;
 const container = document.querySelector('.container')!;
 const dragOverlay = document.getElementById('drag-overlay')!;
 const dragUploadIcon = document.getElementById('drag-upload-icon') as HTMLImageElement;
+const resultLanguageContainer = document.getElementById('result-language') as HTMLElement | null;
+const resultLanguageName = document.getElementById('result-detected-language-name') as HTMLElement | null;
+const resultLanguageSelect = document.getElementById('result-language-select') as HTMLSelectElement | null;
+const languageWarning = document.getElementById('language-warning') as HTMLElement | null;
 
 // Поддерживаемые форматы изображений
 const ALLOWED_MIME_TYPES = [
@@ -78,6 +91,58 @@ function resetUploadContainer(): void {
   processingContent.style.display = 'none';
   processingText.textContent = '';
   progressFill.style.width = '0%';
+  if (languageWarning) {
+    languageWarning.style.display = 'none';
+    languageWarning.textContent = '';
+  }
+}
+
+function getLanguageLabel(code: string | null): string {
+  if (!code) return 'Unknown';
+  const lang = SUPPORTED_LANGUAGES.find((l) => l.code === code);
+  return lang ? lang.label : code;
+}
+
+function populateLanguageSelect(activeCode: string | null): void {
+  if (!resultLanguageSelect || !resultLanguageContainer) return;
+
+  resultLanguageSelect.innerHTML = '';
+
+  SUPPORTED_LANGUAGES.forEach((lang) => {
+    const option = document.createElement('option');
+    option.value = lang.code;
+    option.textContent = lang.label;
+    if (activeCode && lang.code === activeCode) {
+      option.selected = true;
+    }
+    resultLanguageSelect.appendChild(option);
+  });
+
+  // Если автоопределение не дало язык, оставляем первый как выбранный
+  if (!resultLanguageSelect.value && SUPPORTED_LANGUAGES.length > 0) {
+    resultLanguageSelect.value = SUPPORTED_LANGUAGES[0].code;
+  }
+
+  selectedLanguageCode = resultLanguageSelect.value || activeCode;
+
+  if (resultLanguageName) {
+    resultLanguageName.textContent = getLanguageLabel(selectedLanguageCode || activeCode);
+  }
+
+  resultLanguageContainer.style.display = 'flex';
+}
+
+function handleResultLanguageChange(): void {
+  if (!resultLanguageSelect || !currentImageData) return;
+
+  selectedLanguageCode = resultLanguageSelect.value;
+
+  if (resultLanguageName) {
+    resultLanguageName.textContent = getLanguageLabel(selectedLanguageCode);
+  }
+
+  // Запускаем повторное распознавание для текущего изображения без повторного автоопределения языка
+  void processImage(currentImageData, undefined, undefined, true);
 }
 
 // Проверка, является ли файл PDF
@@ -147,7 +212,8 @@ function blobToBase64(blob: Blob): Promise<string> {
 async function processImage(
   imageData: string,
   selection?: SelectionRect,
-  viewport?: ViewportInfo
+  viewport?: ViewportInfo,
+  skipLanguageDetection: boolean = false
 ): Promise<void> {
   showState('processing');
   setUploadContainerProcessing(imageData);
@@ -171,19 +237,40 @@ async function processImage(
 
     currentImageData = processedImageData;
 
-    // Инициализируем OCR при первой загрузке
-    try {
-      await initializeOCR();
-      console.log('OCR initialized');
-    } catch (initError) {
-      console.error('OCR initialization error:', initError);
-      resetUploadContainer();
-      throw new Error(`Ошибка инициализации OCR: ${initError instanceof Error ? initError.message : String(initError)}`);
+    // Для нового изображения сбрасываем выбранный и автоопределенный язык
+    if (!skipLanguageDetection) {
+      detectedLanguageCode = null;
+      selectedLanguageCode = null;
+      isLanguageDetectionUncertain = false;
     }
 
-    // Обрабатываем изображение
+    // Автоопределяем язык по изображению (только при первом запуске для данного изображения)
+    if (!skipLanguageDetection) {
+      try {
+        const candidates = SUPPORTED_LANGUAGES.map((l) => l.code);
+        const detection: DetectedLanguage = await detectLanguageFromImage(processedImageData, candidates);
+        detectedLanguageCode = detection.language;
+        isLanguageDetectionUncertain = Boolean(detection.shortText);
+        console.log(
+          'Detected language:',
+          detectedLanguageCode,
+          'confidence:',
+          detection.confidence,
+          'shortText:',
+          detection.shortText
+        );
+      } catch (detectError) {
+        console.error('Language detection error:', detectError);
+        detectedLanguageCode = null;
+        isLanguageDetectionUncertain = false;
+      }
+    }
+
+    const ocrLanguage = selectedLanguageCode || detectedLanguageCode || 'rus+eng';
+
+    // Обрабатываем изображение с выбранным языком
     try {
-      const result = await recognizeText(processedImageData, (progress: OCRProgress) => {
+      const result = await recognizeText(processedImageData, ocrLanguage, (progress: OCRProgress) => {
         const percent = Math.round(progress.progress * 100);
         progressFill.style.width = `${percent}%`;
         processingText.textContent = `${percent}%`;
@@ -191,9 +278,38 @@ async function processImage(
 
       // Показываем результат и сбрасываем состояние upload-container
       resetUploadContainer();
-      const recognizedText = result.text || 'Текст не найден';
-      originalRecognizedText = recognizedText;
-      resultText.value = recognizedText;
+      const recognizedText = result.text?.trim() || '';
+      const isEmptyText = !recognizedText;
+      
+      if (isEmptyText) {
+        // Если текст пустой, оставляем textarea пустым и показываем сообщение
+        originalRecognizedText = '';
+        resultText.value = '';
+        // Обновляем UI выбора языка в блоке результата
+        populateLanguageSelect(selectedLanguageCode || detectedLanguageCode);
+        // Показываем сообщение о том, что текст не найден
+        if (languageWarning) {
+          languageWarning.textContent = 'Текст не найден на изображении. Попробуйте выбрать другой язык или загрузить другое изображение.';
+          languageWarning.style.display = 'block';
+        }
+      } else {
+        // Если текст есть, заполняем textarea
+        originalRecognizedText = recognizedText;
+        resultText.value = recognizedText;
+        // Обновляем UI выбора языка в блоке результата
+        populateLanguageSelect(selectedLanguageCode || detectedLanguageCode);
+        // Показываем предупреждение, если язык определён по очень короткому тексту
+        if (languageWarning) {
+          if (isLanguageDetectionUncertain) {
+            languageWarning.textContent =
+              'Текст очень короткий, автоопределение языка может быть неточным. При необходимости выберите язык вручную.';
+            languageWarning.style.display = 'block';
+          } else {
+            languageWarning.textContent = '';
+            languageWarning.style.display = 'none';
+          }
+        }
+      }
       showState('result');
       // Вызываем autoResizeTextarea после того, как элемент стал видимым
       requestAnimationFrame(() => {
@@ -258,11 +374,13 @@ function autoResizeTextarea(): void {
   
   // Вычисляем максимальную доступную высоту с учетом кнопок и отступов
   const resultStateRect = resultState.getBoundingClientRect();
+  const resultLanguageContainerRect = resultLanguageContainer?.getBoundingClientRect();
+  const resultLanguageContainerHeight = (resultLanguageContainerRect?.height ?? 0) + 20;
   const buttonsRect = resultState.querySelector('.result-buttons')?.getBoundingClientRect();
   const buttonsHeight = buttonsRect ? buttonsRect.height + 16 : 60; // 16px - margin-bottom textarea
   const paddingTop = parseInt(getComputedStyle(resultState).paddingTop || '0', 10);
   const paddingBottom = parseInt(getComputedStyle(resultState).paddingBottom || '0', 10);
-  const maxHeight = resultStateRect.height - buttonsHeight - paddingTop - paddingBottom;
+  const maxHeight = resultStateRect.height - resultLanguageContainerHeight - buttonsHeight - paddingTop - paddingBottom;
   
   // Устанавливаем высоту, но не превышающую максимальную доступную
   const contentHeight = resultText.scrollHeight;
@@ -301,6 +419,11 @@ function backToMain(): void {
   resultText.value = originalRecognizedText;
   autoResizeTextarea();
   resetUploadContainer();
+  if (languageWarning) {
+    languageWarning.style.display = 'none';
+    languageWarning.textContent = '';
+  }
+  isLanguageDetectionUncertain = false;
   // Оставляем тогглер включённым и активируем overlay для немедленного выделения
   if (screenshotToggle) {
     screenshotToggle.checked = true;
@@ -646,9 +769,14 @@ backButton.addEventListener('click', backToMain);
 resultText.addEventListener('input', autoResizeTextarea);
 retryButton.addEventListener('click', () => {
   if (currentImageData) {
-    processImage(currentImageData); // При повторе используем уже обрезанное изображение
+    // При повторе используем уже обрезанное изображение и текущий выбранный язык
+    void processImage(currentImageData, undefined, undefined, true);
   }
 });
+if (resultLanguageSelect) {
+  resultLanguageSelect.addEventListener('change', handleResultLanguageChange);
+}
+
 screenshotToggle.addEventListener('change', handleToggleChange);
 uploadButton.addEventListener('click', handleUploadButtonClick);
 fileInput.addEventListener('change', handleFileUpload);
