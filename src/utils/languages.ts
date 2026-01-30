@@ -1,23 +1,7 @@
-export interface OCRProgress {
-  status: string;
-  progress: number;
-}
+// Re-export типов для обратной совместимости
+export type { OCRProgress, OCRResult, DetectedLanguage, SupportedLanguage } from '../types';
 
-export interface OCRResult {
-  text: string;
-  confidence: number;
-}
-
-export interface DetectedLanguage {
-  language: string;
-  confidence: number;
-  shortText?: boolean;
-}
-
-export interface SupportedLanguage {
-  code: string;
-  label: string;
-}
+import type { SupportedLanguage } from '../types';
 
 // Поддерживаемые языки для UI и логики
 export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [

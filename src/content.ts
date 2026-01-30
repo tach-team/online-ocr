@@ -1,5 +1,12 @@
 import { SelectionManager } from './utils/selection';
 
+// Константы инлайнены, т.к. content scripts не поддерживают ES модули
+const MESSAGE_TYPES = {
+  PING: 'PING',
+  ACTIVATE_OVERLAY: 'ACTIVATE_OVERLAY',
+  DEACTIVATE_OVERLAY: 'DEACTIVATE_OVERLAY',
+} as const;
+
 let selectionManager: SelectionManager | null = null;
 
 // Инициализация при загрузке скрипта
@@ -11,12 +18,12 @@ function init() {
 
 // Обработка сообщений от background script и sidepanel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'PING') {
+  if (message.type === MESSAGE_TYPES.PING) {
     sendResponse({ success: true });
     return false;
   }
 
-  if (message.type === 'ACTIVATE_OVERLAY') {
+  if (message.type === MESSAGE_TYPES.ACTIVATE_OVERLAY) {
     try {
       if (!selectionManager) {
         init();
@@ -30,7 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Асинхронный ответ
   }
 
-  if (message.type === 'DEACTIVATE_OVERLAY') {
+  if (message.type === MESSAGE_TYPES.DEACTIVATE_OVERLAY) {
     try {
       selectionManager?.deactivate();
       sendResponse({ success: true });

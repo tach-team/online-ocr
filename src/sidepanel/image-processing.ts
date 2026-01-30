@@ -12,13 +12,13 @@ import { validatePdfFile, convertPdfPageToImage } from '../utils/pdf-to-image';
 import { elements } from './dom-elements';
 import {
   showState,
+  showError,
   setUploadContainerProcessing,
   resetUploadContainer,
   populateLanguageSelect,
   autoResizeTextarea,
   currentImageData,
   setCurrentImageData,
-  originalRecognizedText,
   setOriginalRecognizedText,
   detectedLanguageCode,
   setDetectedLanguageCode,
@@ -28,7 +28,8 @@ import {
   setIsLanguageDetectionUncertain,
   getLanguageLabel,
 } from './state';
-import { MAX_PDF_SIZE_MB, MAX_PDF_PAGES } from './file-handling';
+import { validateFile, fileToBase64, isPdfFile } from './file-handling';
+import { APP_STATES, UI_STRINGS, DEFAULT_OCR_LANGUAGE, THRESHOLDS } from '../constants';
 
 // Основная функция обработки изображения
 export async function processImage(
@@ -37,7 +38,7 @@ export async function processImage(
   viewport?: ViewportInfo,
   skipLanguageDetection: boolean = false
 ): Promise<void> {
-  showState('processing');
+  showState(APP_STATES.PROCESSING);
   setUploadContainerProcessing(imageData);
 
   try {
@@ -91,7 +92,7 @@ export async function processImage(
       }
     }
 
-    const ocrLanguage = selectedLanguageCode || currentDetectedLanguageCode || 'rus+eng';
+    const ocrLanguage = selectedLanguageCode || currentDetectedLanguageCode || DEFAULT_OCR_LANGUAGE;
 
     // Обрабатываем изображение с выбранным языком
     try {
@@ -114,7 +115,7 @@ export async function processImage(
         populateLanguageSelect(selectedLanguageCode || currentDetectedLanguageCode);
         // Показываем сообщение о том, что текст не найден
         if (elements.languageWarning) {
-          elements.languageWarning.textContent = 'Текст не найден на изображении. Попробуйте выбрать другой язык или загрузить другое изображение.';
+          elements.languageWarning.textContent = UI_STRINGS.TEXT_NOT_FOUND;
           elements.languageWarning.style.display = 'block';
         }
       } else {
@@ -126,8 +127,7 @@ export async function processImage(
         // Показываем предупреждение, если язык определён по очень короткому тексту
         if (elements.languageWarning) {
           if (isLanguageDetectionUncertain) {
-            elements.languageWarning.textContent =
-              'Текст очень короткий, автоопределение языка может быть неточным. При необходимости выберите язык вручную.';
+            elements.languageWarning.textContent = UI_STRINGS.SHORT_TEXT_WARNING;
             elements.languageWarning.style.display = 'block';
           } else {
             elements.languageWarning.textContent = '';
@@ -135,7 +135,7 @@ export async function processImage(
           }
         }
       }
-      showState('result');
+      showState(APP_STATES.RESULT);
       // Вызываем autoResizeTextarea после того, как элемент стал видимым
       requestAnimationFrame(() => {
         autoResizeTextarea();
@@ -148,17 +148,17 @@ export async function processImage(
   } catch (error) {
     console.error('Processing error:', error);
     resetUploadContainer();
-    let errorText = 'Неизвестная ошибка';
+    let errorText: string = UI_STRINGS.UNKNOWN_ERROR;
     if (error instanceof Error) {
-      errorText = error.message || error.toString() || 'Неизвестная ошибка';
+      errorText = error.message || error.toString() || UI_STRINGS.UNKNOWN_ERROR;
     } else if (error) {
-      errorText = String(error) || 'Неизвестная ошибка';
+      errorText = String(error) || UI_STRINGS.UNKNOWN_ERROR;
     }
     if (!errorText || errorText === 'undefined' || errorText === 'null') {
-      errorText = 'Произошла неизвестная ошибка при обработке изображения';
+      errorText = UI_STRINGS.IMAGE_PROCESSING_ERROR;
     }
     elements.errorMessage.textContent = errorText;
-    showState('error');
+    showState(APP_STATES.ERROR);
   }
 }
 
@@ -166,30 +166,30 @@ export async function processImage(
 export async function processPdfFile(file: File): Promise<void> {
   try {
     // Валидация PDF
-    const validation = await validatePdfFile(file, MAX_PDF_SIZE_MB, MAX_PDF_PAGES);
+    const validation = await validatePdfFile(file, THRESHOLDS.MAX_PDF_SIZE_MB, THRESHOLDS.MAX_PDF_PAGES);
     if (!validation.valid) {
       throw new Error(validation.error || 'Ошибка валидации PDF');
     }
 
     // Конвертируем первую страницу PDF в изображение
-    const imageData = await convertPdfPageToImage(file, 1, 2);
+    const imageData = await convertPdfPageToImage(file, 1, THRESHOLDS.PDF_RENDER_SCALE);
 
     // Обрабатываем полученное изображение через существующий pipeline
     await processImage(imageData);
   } catch (error) {
     console.error('PDF processing error:', error);
     resetUploadContainer();
-    let errorText = 'Неизвестная ошибка при обработке PDF';
+    let errorText: string = UI_STRINGS.PDF_PROCESSING_ERROR;
     if (error instanceof Error) {
       errorText = error.message || error.toString() || errorText;
     } else if (error) {
       errorText = String(error) || errorText;
     }
     if (!errorText || errorText === 'undefined' || errorText === 'null') {
-      errorText = 'Произошла неизвестная ошибка при обработке PDF файла';
+      errorText = UI_STRINGS.PDF_PROCESSING_ERROR;
     }
     elements.errorMessage.textContent = errorText;
-    showState('error');
+    showState(APP_STATES.ERROR);
   }
 }
 
@@ -205,4 +205,27 @@ export function handleResultLanguageChange(): void {
 
   // Запускаем повторное распознавание для текущего изображения без повторного автоопределения языка
   void processImage(currentImageData, undefined, undefined, true);
+}
+
+/**
+ * Единая функция обработки файла (изображение или PDF)
+ * Используется в index.ts, drag-drop.ts, clipboard.ts для устранения дублирования
+ */
+export async function handleFileProcessing(file: File): Promise<void> {
+  // Валидация формата
+  const validation = await validateFile(file);
+  if (!validation.valid) {
+    showError(validation.error || UI_STRINGS.UNSUPPORTED_FORMAT);
+    return;
+  }
+
+  // Если это PDF, обрабатываем через processPdfFile
+  if (isPdfFile(file)) {
+    await processPdfFile(file);
+  } else {
+    // Конвертируем файл в base64
+    const imageData = await fileToBase64(file);
+    // Обрабатываем изображение
+    await processImage(imageData);
+  }
 }

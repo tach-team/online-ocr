@@ -1,10 +1,10 @@
 // Работа с буфером обмена
 
 import { elements } from './dom-elements';
-import { showState } from './state';
-import { validateFile, blobToBase64, isPdfFile } from './file-handling';
-import { processImage, processPdfFile } from './image-processing';
+import { showError } from './state';
+import { handleFileProcessing } from './image-processing';
 import { deactivateOverlay } from './overlay';
+import { UI_STRINGS } from '../constants';
 
 // Состояние активации буфера обмена
 let isClipboardActive: boolean = false;
@@ -96,39 +96,19 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
         continue;
       }
 
-      // Создаем временный File объект для валидации
+      // Создаем временный File объект для обработки
       const fileName = item.type === 'application/pdf'
         ? 'clipboard-file.pdf'
         : `clipboard-image.${item.type.split('/')[1]}`;
       const tempFile = new File([blob], fileName, { type: item.type });
 
-      // Валидация формата
-      const validation = await validateFile(tempFile);
-      if (!validation.valid) {
-        elements.errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла из буфера обмена';
-        showState('error');
-        deactivateClipboard();
-        return;
-      }
-
       try {
-        // Если это PDF, обрабатываем через processPdfFile
-        if (isPdfFile(tempFile)) {
-          await processPdfFile(tempFile);
-        } else {
-          // Конвертируем blob в base64
-          const imageData = await blobToBase64(blob);
-
-          // Обрабатываем изображение
-          await processImage(imageData);
-        }
-
+        await handleFileProcessing(tempFile);
         // Деактивируем блок после успешной вставки
         deactivateClipboard();
       } catch (error) {
         console.error('Paste error:', error);
-        elements.errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при вставке файла из буфера обмена';
-        showState('error');
+        showError(error, UI_STRINGS.FILE_UPLOAD_ERROR);
         deactivateClipboard();
       }
 

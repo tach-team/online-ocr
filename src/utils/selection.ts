@@ -1,9 +1,15 @@
-export interface SelectionRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+// Re-export типа для обратной совместимости
+export type { SelectionRect } from '../types';
+
+import type { SelectionRect } from '../types';
+
+// Константы инлайнены, т.к. этот файл используется в content script,
+// который не поддерживает ES модули с импортами из других chunks
+const MIN_SELECTION_SIZE = 10;
+const MESSAGE_TYPES = {
+  CAPTURE_AREA: 'CAPTURE_AREA',
+  PROCESS_IMAGE: 'PROCESS_IMAGE',
+} as const;
 
 export class SelectionManager {
   private overlay: HTMLDivElement | null = null;
@@ -116,7 +122,7 @@ export class SelectionManager {
       if (!this.isSelecting) return;
       this.isSelecting = false;
 
-      if (this.currentSelection && this.currentSelection.width > 10 && this.currentSelection.height > 10) {
+      if (this.currentSelection && this.currentSelection.width > MIN_SELECTION_SIZE && this.currentSelection.height > MIN_SELECTION_SIZE) {
         await this.captureSelection();
       } else {
         // Если выделение слишком маленькое, скрываем рамку
@@ -149,7 +155,7 @@ export class SelectionManager {
     // Отправляем запрос на скриншот
     chrome.runtime.sendMessage(
       {
-        type: 'CAPTURE_AREA',
+        type: MESSAGE_TYPES.CAPTURE_AREA,
         selection: this.currentSelection,
         viewport: viewportInfo,
       },
@@ -166,7 +172,7 @@ export class SelectionManager {
 
         // Отправляем изображение в side panel
         chrome.runtime.sendMessage({
-          type: 'PROCESS_IMAGE',
+          type: MESSAGE_TYPES.PROCESS_IMAGE,
           imageData: response.imageData,
           selection: response.selection,
           viewport: response.viewport,

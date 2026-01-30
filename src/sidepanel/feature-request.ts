@@ -2,17 +2,11 @@
 
 import { elements } from './dom-elements';
 import { validateFile } from './file-handling';
-
-// Типы
-interface AttachedFile {
-  file: File;
-  preview: string; // base64 data URL
-  id: string; // уникальный ID для удаления
-}
+import type { AttachedFile } from '../types';
+import { THRESHOLDS, ICON_PATHS, UI_STRINGS } from '../constants';
 
 // Состояние формы
 let attachedFiles: AttachedFile[] = [];
-const MAX_ATTACHMENTS = 3;
 
 // Генерация уникального ID для файла
 function generateFileId(): string {
@@ -55,7 +49,7 @@ function renderAttachments(): void {
     } else {
       const placeholder = document.createElement('div');
       placeholder.className = 'feature-request-attachment-preview-placeholder';
-      placeholder.textContent = 'IMG';
+      placeholder.textContent = UI_STRINGS.IMG_PLACEHOLDER;
       previewElement.appendChild(placeholder);
     }
 
@@ -67,7 +61,7 @@ function renderAttachments(): void {
     const removeButton = document.createElement('button');
     removeButton.className = 'feature-request-attachment-remove';
     removeButton.type = 'button';
-    removeButton.setAttribute('aria-label', 'Удалить файл');
+    removeButton.setAttribute('aria-label', UI_STRINGS.REMOVE_FILE);
     removeButton.addEventListener('click', () => {
       removeAttachment(attachedFile.id);
     });
@@ -96,9 +90,9 @@ async function handleFileAttach(event: Event): Promise<void> {
   }
 
   // Проверяем, сколько файлов можно добавить
-  const availableSlots = MAX_ATTACHMENTS - attachedFiles.length;
+  const availableSlots = THRESHOLDS.MAX_ATTACHMENTS - attachedFiles.length;
   if (availableSlots <= 0) {
-    alert(`Можно прикрепить максимум ${MAX_ATTACHMENTS} изображения`);
+    alert(`Можно прикрепить максимум ${THRESHOLDS.MAX_ATTACHMENTS} изображения`);
     input.value = '';
     return;
   }
@@ -290,14 +284,14 @@ export function initFeatureRequestForm(): void {
   // Устанавливаем правильный путь к иконке скрепки через CSS переменную
   const attachIconElement = elements.featureRequestAttachButton?.querySelector('.feature-request-attach-icon');
   if (attachIconElement) {
-    const iconUrl = chrome.runtime.getURL('icons/icon-attach.svg');
+    const iconUrl = chrome.runtime.getURL(ICON_PATHS.ATTACH);
     (attachIconElement as HTMLElement).style.setProperty('--attach-icon-url', `url(${iconUrl})`);
     (attachIconElement as HTMLElement).style.setProperty('-webkit-mask-image', `url(${iconUrl})`);
     (attachIconElement as HTMLElement).style.setProperty('mask-image', `url(${iconUrl})`);
   }
 
   // Устанавливаем правильный путь к иконке крестика через CSS переменную
-  const crossIconUrl = chrome.runtime.getURL('icons/icon-cross.svg');
+  const crossIconUrl = chrome.runtime.getURL(ICON_PATHS.CROSS);
   document.documentElement.style.setProperty('--cross-icon-url', `url(${crossIconUrl})`);
 
   // Инициализируем звездочки

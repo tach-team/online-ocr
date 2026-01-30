@@ -1,10 +1,19 @@
+// Константы инлайнены, т.к. service worker не поддерживает ES модули
+const MESSAGE_TYPES = {
+  PING: 'PING',
+  CAPTURE_AREA: 'CAPTURE_AREA',
+} as const;
+
+const RESTRICTED_URL_PREFIXES = ['chrome://', 'chrome-extension://', 'edge://'];
+const CONTENT_SCRIPT = 'content.js';
+
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
 
   try {
     // Проверяем, что страница доступна для инжекции скриптов
     const url = tab.url || '';
-    if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('edge://')) {
+    if (RESTRICTED_URL_PREFIXES.some(prefix => url.startsWith(prefix))) {
       console.error('Cannot inject content script on this page:', url);
       return;
     }
@@ -15,7 +24,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     // Убеждаемся, что content script загружен
     try {
       await chrome.tabs.sendMessage(tab.id!, {
-        type: 'PING',
+        type: MESSAGE_TYPES.PING,
       });
     } catch (sendError) {
       // Если content script не загружен, инжектируем его программно
@@ -23,7 +32,7 @@ chrome.action.onClicked.addListener(async (tab) => {
         try {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id! },
-            files: ['content.js'],
+            files: [CONTENT_SCRIPT],
           });
         } catch (injectError) {
           console.error('Failed to inject content script:', injectError);
@@ -37,7 +46,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 // Обработка сообщений от content script и side panel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'CAPTURE_AREA') {
+  if (message.type === MESSAGE_TYPES.CAPTURE_AREA) {
     // Получаем windowId или используем текущее окно
     const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
     

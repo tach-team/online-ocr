@@ -3,6 +3,7 @@
 import { elements } from './dom-elements';
 import {
   showState,
+  showError,
   resetUploadContainer,
   autoResizeTextarea,
   copyToClipboard,
@@ -10,12 +11,12 @@ import {
   setIsLanguageDetectionUncertain,
   currentImageData,
 } from './state';
-import { validateFile, fileToBase64, isPdfFile } from './file-handling';
-import { processImage, processPdfFile, handleResultLanguageChange } from './image-processing';
+import { processImage, handleResultLanguageChange, handleFileProcessing } from './image-processing';
 import { activateOverlay, deactivateOverlay, handleToggleChange } from './overlay';
 import { initDragDrop } from './drag-drop';
 import { initClipboard } from './clipboard';
 import { initFeatureRequestForm } from './feature-request';
+import { MESSAGE_TYPES, TIMING, ICON_PATHS, UI_STRINGS, APP_STATES } from '../constants';
 
 // Обработчик загрузки файла
 async function handleFileUpload(event: Event): Promise<void> {
@@ -26,31 +27,11 @@ async function handleFileUpload(event: Event): Promise<void> {
     return;
   }
 
-  // Валидация формата
-  const validation = await validateFile(file);
-  if (!validation.valid) {
-    elements.errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
-    showState('error');
-    // Сбрасываем input для возможности повторной загрузки того же файла
-    input.value = '';
-    return;
-  }
-
   try {
-    // Если это PDF, обрабатываем через processPdfFile
-    if (isPdfFile(file)) {
-      await processPdfFile(file);
-    } else {
-      // Конвертируем файл в base64
-      const imageData = await fileToBase64(file);
-
-      // Обрабатываем изображение
-      await processImage(imageData);
-    }
+    await handleFileProcessing(file);
   } catch (error) {
     console.error('File upload error:', error);
-    elements.errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при загрузке файла';
-    showState('error');
+    showError(error, UI_STRINGS.FILE_UPLOAD_ERROR);
   } finally {
     // Сбрасываем input для возможности повторной загрузки того же файла
     input.value = '';
@@ -79,7 +60,7 @@ function backToMain(): void {
     elements.screenshotToggle.checked = true;
     activateOverlay();
   }
-  showState('waiting');
+  showState(APP_STATES.WAITING);
 }
 
 // Инициализация обработчиков событий
@@ -111,7 +92,7 @@ function initEventListeners(): void {
 
   // Слушаем сообщения от content script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'PROCESS_IMAGE') {
+    if (message.type === MESSAGE_TYPES.PROCESS_IMAGE) {
       processImage(message.imageData, message.selection, message.viewport);
       sendResponse({ success: true });
     }
@@ -127,10 +108,10 @@ function initEventListeners(): void {
 function initIcons(): void {
   // Устанавливаем правильный путь к иконкам загрузки
   if (elements.uploadIcon) {
-    elements.uploadIcon.src = chrome.runtime.getURL('icons/icon-upload.svg');
+    elements.uploadIcon.src = chrome.runtime.getURL(ICON_PATHS.UPLOAD);
   }
   if (elements.dragUploadIcon) {
-    elements.dragUploadIcon.src = chrome.runtime.getURL('icons/icon-upload.svg');
+    elements.dragUploadIcon.src = chrome.runtime.getURL(ICON_PATHS.UPLOAD);
   }
 }
 
@@ -141,14 +122,14 @@ function initOverlay(): void {
     // Небольшая задержка для обеспечения загрузки content script
     setTimeout(() => {
       activateOverlay();
-    }, 100);
+    }, TIMING.OVERLAY_ACTIVATION_DELAY);
   }
 }
 
 // Главная функция инициализации
 export function init(): void {
   // Показываем начальное состояние
-  showState('waiting');
+  showState(APP_STATES.WAITING);
 
   // Инициализируем модули
   initEventListeners();

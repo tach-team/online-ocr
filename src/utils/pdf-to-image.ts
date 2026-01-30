@@ -1,25 +1,25 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
+// Re-export типа для обратной совместимости
+export type { PdfValidationResult } from '../types';
+
+import type { PdfValidationResult } from '../types';
+import { WORKER_PATHS, getPdfJsWorkerUrl } from '../constants';
+
 // Настройка worker для PDF.js
 // Используем локальный worker через chrome.runtime.getURL для Chrome расширения
 if (typeof window !== 'undefined' && typeof chrome !== 'undefined' && chrome.runtime) {
   try {
     // Пытаемся использовать локальный worker из расширения
-    pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('workers/pdf.worker.min.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL(WORKER_PATHS.PDF_WORKER);
   } catch (error) {
     // Fallback на CDN, если локальный worker недоступен
     console.warn('Local PDF.js worker not found, using CDN fallback');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfJsWorkerUrl(pdfjsLib.version);
   }
 } else if (typeof window !== 'undefined') {
   // Для обычного веб-окружения используем CDN
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-}
-
-export interface PdfValidationResult {
-  valid: boolean;
-  error?: string;
-  numPages?: number;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfJsWorkerUrl(pdfjsLib.version);
 }
 
 /**

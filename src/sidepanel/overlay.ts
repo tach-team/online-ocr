@@ -1,13 +1,14 @@
 // Управление selection overlay
 
 import { elements } from './dom-elements';
+import { MESSAGE_TYPES } from '../constants';
 
 // Функция для активации overlay
 export function activateOverlay(): void {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
       chrome.tabs.sendMessage(tabs[0].id, {
-        type: 'ACTIVATE_OVERLAY',
+        type: MESSAGE_TYPES.ACTIVATE_OVERLAY,
       }).catch(() => {
         // Игнорируем ошибки, если content script не загружен
       });
@@ -21,22 +22,7 @@ export function deactivateOverlay(): void {
     tabs.forEach(tab => {
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, {
-          type: 'DEACTIVATE_OVERLAY',
-        }).catch(() => {
-          // Игнорируем ошибки, если content script не загружен
-        });
-      }
-    });
-  });
-}
-
-// Функция для деактивации overlay из toggle (аналогична deactivateOverlay)
-export function deactivateOverlayFromToggle(): void {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    tabs.forEach(tab => {
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, {
-          type: 'DEACTIVATE_OVERLAY',
+          type: MESSAGE_TYPES.DEACTIVATE_OVERLAY,
         }).catch(() => {
           // Игнорируем ошибки, если content script не загружен
         });
@@ -50,7 +36,7 @@ export function handleToggleChange(): void {
   if (elements.screenshotToggle.checked) {
     activateOverlay();
   } else {
-    deactivateOverlayFromToggle();
+    deactivateOverlay();
   }
 }
 
@@ -60,7 +46,7 @@ export function requestNewSelection(): void {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
       chrome.tabs.sendMessage(tabs[0].id, {
-        type: 'ACTIVATE_OVERLAY',
+        type: MESSAGE_TYPES.ACTIVATE_OVERLAY,
       });
       // Включаем свитчер при запросе новой области
       if (elements.screenshotToggle) {

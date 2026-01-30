@@ -1,9 +1,10 @@
 // Drag & Drop функциональность
 
 import { elements } from './dom-elements';
-import { showState } from './state';
-import { validateFile, fileToBase64, isPdfFile, ALLOWED_MIME_TYPES } from './file-handling';
-import { processImage, processPdfFile } from './image-processing';
+import { showError } from './state';
+import { ALLOWED_MIME_TYPES } from './file-handling';
+import { handleFileProcessing } from './image-processing';
+import { UI_STRINGS } from '../constants';
 
 // Счётчик для отслеживания вложенных drag событий
 let dragCounter = 0;
@@ -86,29 +87,11 @@ async function handleDrop(event: DragEvent): Promise<void> {
 
   const file = files[0];
 
-  // Валидация формата
-  const validation = await validateFile(file);
-  if (!validation.valid) {
-    elements.errorMessage.textContent = validation.error || 'Неподдерживаемый формат файла';
-    showState('error');
-    return;
-  }
-
   try {
-    // Если это PDF, обрабатываем через processPdfFile
-    if (isPdfFile(file)) {
-      await processPdfFile(file);
-    } else {
-      // Конвертируем файл в base64
-      const imageData = await fileToBase64(file);
-
-      // Обрабатываем изображение
-      await processImage(imageData);
-    }
+    await handleFileProcessing(file);
   } catch (error) {
     console.error('Drop error:', error);
-    elements.errorMessage.textContent = error instanceof Error ? error.message : 'Ошибка при загрузке файла';
-    showState('error');
+    showError(error, UI_STRINGS.FILE_UPLOAD_ERROR);
   }
 }
 

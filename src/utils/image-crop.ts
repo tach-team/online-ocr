@@ -1,17 +1,7 @@
-export interface SelectionRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+// Re-export типов для обратной совместимости
+export type { SelectionRect, ViewportInfo } from '../types';
 
-export interface ViewportInfo {
-  scrollX: number;
-  scrollY: number;
-  innerWidth: number;
-  innerHeight: number;
-  devicePixelRatio: number;
-}
+import type { SelectionRect, ViewportInfo } from '../types';
 
 /**
  * Обрезает изображение по выделенной области

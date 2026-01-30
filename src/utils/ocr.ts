@@ -8,6 +8,7 @@ import {
 import {
   detectLanguageFromImage as detectLanguageFromImageImpl,
 } from './language-detection';
+import { CDN_URLS, WORKER_PATHS, TIMING, OCR_PROGRESS } from '../constants';
 
 // Реэкспорт типов и констант из languages.ts
 export type { OCRProgress, OCRResult, DetectedLanguage, SupportedLanguage } from './languages';
@@ -41,8 +42,8 @@ export async function initializeOCR(languageCode: string = DEFAULT_LANGUAGE_CODE
 
   if (!worker) {
     try {
-      const workerPath = chrome.runtime.getURL('workers/');
-      const workerUrl = chrome.runtime.getURL('workers/worker.min.js');
+      const workerPath = chrome.runtime.getURL(WORKER_PATHS.OCR_WORKER_DIR);
+      const workerUrl = chrome.runtime.getURL(WORKER_PATHS.OCR_WORKER);
       
       console.log('Worker path:', workerPath);
       console.log('Worker URL:', workerUrl);
@@ -61,8 +62,8 @@ export async function initializeOCR(languageCode: string = DEFAULT_LANGUAGE_CODE
       
       // Пробуем инициализировать worker
       // Указываем явные пути к файлам (не директориям!)
-      const corePath = chrome.runtime.getURL('core/tesseract-core-lstm.wasm.js');
-      const langPath = 'https://tessdata.projectnaptha.com/4.0.0_fast/'; // CDN для языковых данных (fetch разрешен)
+      const corePath = chrome.runtime.getURL(WORKER_PATHS.OCR_CORE);
+      const langPath = CDN_URLS.TESSERACT_LANG_DATA; // CDN для языковых данных (fetch разрешен)
       
       console.log('Начинаем создание worker...');
       console.log('Worker path:', workerUrl);
@@ -74,8 +75,8 @@ export async function initializeOCR(languageCode: string = DEFAULT_LANGUAGE_CODE
         // Оборачиваем в Promise для лучшей обработки ошибок
         worker = await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
-            reject(new Error('Таймаут при создании worker (30 секунд)'));
-          }, 30000);
+            reject(new Error(`Таймаут при создании worker (${TIMING.WORKER_INIT_TIMEOUT / 1000} секунд)`));
+          }, TIMING.WORKER_INIT_TIMEOUT);
           
           createWorker(languageCode || DEFAULT_LANGUAGE_CODE, 1, {
             workerPath: workerUrl, // Полный путь к файлу worker
@@ -106,12 +107,12 @@ export async function initializeOCR(languageCode: string = DEFAULT_LANGUAGE_CODE
                 } else if (m.status === 'loading language traineddata') {
                   progressCallback({
                     status: 'loading',
-                    progress: 0.1,
+                    progress: OCR_PROGRESS.LOADING,
                   });
                 } else if (m.status === 'initializing tesseract') {
                   progressCallback({
                     status: 'initializing',
-                    progress: 0.2,
+                    progress: OCR_PROGRESS.INITIALIZING,
                   });
                 }
               }
@@ -183,7 +184,7 @@ export async function recognizeText(
     if (onProgress) {
       onProgress({
         status: 'completed',
-        progress: 1,
+        progress: OCR_PROGRESS.COMPLETED,
       });
     }
 

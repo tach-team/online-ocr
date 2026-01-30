@@ -1,6 +1,12 @@
 // Утилиты для работы с файлами
 
 import { validatePdfFile } from '../utils/pdf-to-image';
+import { UI_STRINGS, THRESHOLDS } from '../constants';
+
+// Re-export типа для обратной совместимости
+export type { ValidationResult } from '../types';
+
+import type { ValidationResult } from '../types';
 
 // Поддерживаемые форматы
 export const ALLOWED_MIME_TYPES = [
@@ -23,14 +29,9 @@ export const ALLOWED_EXTENSIONS = [
   'pdf',
 ];
 
-export const MAX_PDF_SIZE_MB = 10;
-export const MAX_PDF_PAGES = 1;
-
-// Интерфейс результата валидации
-export interface ValidationResult {
-  valid: boolean;
-  error?: string;
-}
+// Re-export констант для обратной совместимости
+export const MAX_PDF_SIZE_MB = THRESHOLDS.MAX_PDF_SIZE_MB;
+export const MAX_PDF_PAGES = THRESHOLDS.MAX_PDF_PAGES;
 
 // Проверка, является ли файл PDF
 export function isPdfFile(file: File): boolean {
@@ -75,7 +76,7 @@ export function fileToBase64(file: File): Promise<string> {
       resolve(result);
     };
     reader.onerror = () => {
-      reject(new Error('Ошибка чтения файла'));
+      reject(new Error(UI_STRINGS.FILE_READ_ERROR));
     };
     reader.readAsDataURL(file);
   });
@@ -90,7 +91,7 @@ export function blobToBase64(blob: Blob): Promise<string> {
       resolve(result);
     };
     reader.onerror = () => {
-      reject(new Error('Ошибка чтения изображения из буфера обмена'));
+      reject(new Error(UI_STRINGS.CLIPBOARD_READ_ERROR));
     };
     reader.readAsDataURL(blob);
   });

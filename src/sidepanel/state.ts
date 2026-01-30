@@ -2,11 +2,12 @@
 
 import { elements } from './dom-elements';
 import { SUPPORTED_LANGUAGES } from '../utils/ocr';
+import { UI_STRINGS, TIMING, APP_STATES } from '../constants';
 
-// Типы
-export interface State {
-  type: 'waiting' | 'processing' | 'result' | 'error';
-}
+// Re-export типа для обратной совместимости
+export type { State } from '../types';
+
+import type { State } from '../types';
 
 // Глобальное состояние
 export let currentImageData: string | null = null;
@@ -39,9 +40,26 @@ export function setIsLanguageDetectionUncertain(value: boolean): void {
 // Функции управления UI состоянием
 export function showState(state: State['type']): void {
   // waiting-state остается видимым во время обработки
-  elements.waitingState.style.display = (state === 'waiting' || state === 'processing') ? 'block' : 'none';
-  elements.resultState.style.display = state === 'result' ? 'block' : 'none';
-  elements.errorState.style.display = state === 'error' ? 'block' : 'none';
+  elements.waitingState.style.display = (state === APP_STATES.WAITING || state === APP_STATES.PROCESSING) ? 'block' : 'none';
+  elements.resultState.style.display = state === APP_STATES.RESULT ? 'block' : 'none';
+  elements.errorState.style.display = state === APP_STATES.ERROR ? 'block' : 'none';
+}
+
+/**
+ * Показать ошибку с сообщением
+ * Унифицированная функция для отображения ошибок
+ */
+export function showError(error: unknown, defaultMessage: string = UI_STRINGS.UNKNOWN_ERROR): void {
+  let message: string;
+  if (typeof error === 'string') {
+    message = error;
+  } else if (error instanceof Error) {
+    message = error.message || defaultMessage;
+  } else {
+    message = defaultMessage;
+  }
+  elements.errorMessage.textContent = message;
+  showState(APP_STATES.ERROR);
 }
 
 // Функция для переключения состояния upload-container в режим обработки
@@ -68,7 +86,7 @@ export function resetUploadContainer(): void {
 
 // Получить label языка по коду
 export function getLanguageLabel(code: string | null): string {
-  if (!code) return 'Unknown';
+  if (!code) return UI_STRINGS.UNKNOWN_LANGUAGE;
   const lang = SUPPORTED_LANGUAGES.find((l) => l.code === code);
   return lang ? lang.label : code;
 }
@@ -139,14 +157,14 @@ export async function copyToClipboard(): Promise<void> {
 
   try {
     await navigator.clipboard.writeText(text);
-    elements.copyButton.textContent = '✓ Copied!';
+    elements.copyButton.textContent = UI_STRINGS.COPY_SUCCESS;
     elements.copyButton.classList.add('copied');
     setTimeout(() => {
-      elements.copyButton.textContent = 'Copy Text';
+      elements.copyButton.textContent = UI_STRINGS.COPY_BUTTON;
       elements.copyButton.classList.remove('copied');
-    }, 2000);
+    }, TIMING.COPY_FEEDBACK_TIMEOUT);
   } catch (error) {
     console.error('Copy error:', error);
-    alert('Не удалось скопировать текст');
+    alert(UI_STRINGS.COPY_ERROR);
   }
 }
