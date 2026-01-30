@@ -9,17 +9,28 @@ import { UI_STRINGS } from '../constants';
 // Состояние активации буфера обмена
 let isClipboardActive: boolean = false;
 
-// Функции для управления активацией буфера обмена
+/**
+ * @internal
+ * Активирует режим вставки из буфера обмена
+ */
 export function activateClipboard(): void {
   isClipboardActive = true;
   elements.uploadArea.classList.add('active');
 }
 
+/**
+ * @internal
+ * Деактивирует режим вставки из буфера обмена
+ */
 export function deactivateClipboard(): void {
   isClipboardActive = false;
   elements.uploadArea.classList.remove('active');
 }
 
+/**
+ * @internal
+ * Возвращает текущее состояние активации буфера обмена
+ */
 export function isClipboardActiveState(): boolean {
   return isClipboardActive;
 }
@@ -117,7 +128,10 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
   }
 }
 
-// Инициализация событий буфера обмена
+/**
+ * @internal
+ * Инициализация событий буфера обмена
+ */
 export function initClipboard(): void {
   elements.uploadArea.addEventListener('click', handleUploadAreaClick);
   document.addEventListener('click', handleClickOutside);

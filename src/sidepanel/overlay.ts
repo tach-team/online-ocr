@@ -31,7 +31,10 @@ export function deactivateOverlay(): void {
   });
 }
 
-// Обработчик переключения свитчера
+/**
+ * @internal
+ * Обработчик переключения свитчера
+ */
 export function handleToggleChange(): void {
   if (elements.screenshotToggle.checked) {
     activateOverlay();
@@ -40,7 +43,10 @@ export function handleToggleChange(): void {
   }
 }
 
-// Запрос новой области выделения
+/**
+ * @internal
+ * Запрос новой области выделения
+ */
 export function requestNewSelection(): void {
   // Отправляем сообщение content script для активации overlay
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

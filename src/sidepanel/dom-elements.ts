@@ -1,5 +1,9 @@
 // Кэш DOM-элементов sidepanel
 
+/**
+ * @internal
+ * Кэш DOM-элементов sidepanel. Только для внутреннего использования в модуле.
+ */
 export const elements = {
   // Основные состояния
   waitingState: document.getElementById('waiting-state')!,

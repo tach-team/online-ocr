@@ -95,7 +95,10 @@ async function handleDrop(event: DragEvent): Promise<void> {
   }
 }
 
-// Инициализация Drag & Drop событий
+/**
+ * @internal
+ * Инициализация Drag & Drop событий
+ */
 export function initDragDrop(): void {
   document.body.addEventListener('dragenter', handleDragEnter);
   document.body.addEventListener('dragover', handleDragOver);

@@ -162,7 +162,10 @@ export async function processImage(
   }
 }
 
-// Обработка PDF файла
+/**
+ * @internal
+ * Обработка PDF файла
+ */
 export async function processPdfFile(file: File): Promise<void> {
   try {
     // Валидация PDF
@@ -193,7 +196,10 @@ export async function processPdfFile(file: File): Promise<void> {
   }
 }
 
-// Обработчик изменения языка в результате
+/**
+ * @internal
+ * Обработчик изменения языка в результате
+ */
 export function handleResultLanguageChange(): void {
   if (!elements.resultLanguageSelect || !currentImageData) return;
 
@@ -208,6 +214,7 @@ export function handleResultLanguageChange(): void {
 }
 
 /**
+ * @internal
  * Единая функция обработки файла (изображение или PDF)
  * Используется в index.ts, drag-drop.ts, clipboard.ts для устранения дублирования
  */

@@ -126,7 +126,10 @@ function initOverlay(): void {
   }
 }
 
-// Главная функция инициализации
+/**
+ * Главная функция инициализации sidepanel.
+ * Инициализирует все модули и обработчики событий.
+ */
 export function init(): void {
   // Показываем начальное состояние
   showState(APP_STATES.WAITING);
@@ -140,7 +143,30 @@ export function init(): void {
   initOverlay();
 }
 
-// Реэкспорт для удобства
+// ============================================
+// Публичный API модуля sidepanel
+// ============================================
+
+/**
+ * Основная функция обработки изображения с OCR.
+ * @param imageData - base64 строка изображения
+ * @param selection - область выделения (опционально)
+ * @param viewport - информация о viewport (опционально)
+ * @param skipLanguageDetection - пропустить автоопределение языка
+ */
 export { processImage } from './image-processing';
-export { activateOverlay, deactivateOverlay } from './overlay';
+
+/**
+ * Активирует overlay для выделения области на странице.
+ */
+export { activateOverlay } from './overlay';
+
+/**
+ * Деактивирует overlay выделения области.
+ */
+export { deactivateOverlay } from './overlay';
+
+/**
+ * Управление отображением состояния UI (waiting, processing, result, error).
+ */
 export { showState } from './state';

@@ -8,7 +8,10 @@ export type { ValidationResult } from '../types';
 
 import type { ValidationResult } from '../types';
 
-// Поддерживаемые форматы
+/**
+ * @internal
+ * Поддерживаемые MIME-типы файлов
+ */
 export const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/jpg',
@@ -19,6 +22,10 @@ export const ALLOWED_MIME_TYPES = [
   'application/pdf',
 ];
 
+/**
+ * @internal
+ * Поддерживаемые расширения файлов
+ */
 export const ALLOWED_EXTENSIONS = [
   'jpg',
   'jpeg',
@@ -29,11 +36,22 @@ export const ALLOWED_EXTENSIONS = [
   'pdf',
 ];
 
-// Re-export констант для обратной совместимости
+/**
+ * @internal
+ * Максимальный размер PDF в МБ (для обратной совместимости)
+ */
 export const MAX_PDF_SIZE_MB = THRESHOLDS.MAX_PDF_SIZE_MB;
+
+/**
+ * @internal
+ * Максимальное количество страниц PDF (для обратной совместимости)
+ */
 export const MAX_PDF_PAGES = THRESHOLDS.MAX_PDF_PAGES;
 
-// Проверка, является ли файл PDF
+/**
+ * @internal
+ * Проверка, является ли файл PDF
+ */
 export function isPdfFile(file: File): boolean {
   if (file.type === 'application/pdf') {
     return true;
@@ -43,7 +61,10 @@ export function isPdfFile(file: File): boolean {
   return extension === 'pdf';
 }
 
-// Валидация формата файла (изображения и PDF)
+/**
+ * @internal
+ * Валидация формата файла (изображения и PDF)
+ */
 export async function validateFile(file: File): Promise<ValidationResult> {
   // Если это PDF, используем специальную валидацию
   if (isPdfFile(file)) {
@@ -67,7 +88,10 @@ export async function validateFile(file: File): Promise<ValidationResult> {
   return { valid: true };
 }
 
-// Конвертация File в base64 строку
+/**
+ * @internal
+ * Конвертация File в base64 строку
+ */
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -82,7 +106,10 @@ export function fileToBase64(file: File): Promise<string> {
   });
 }
 
-// Конвертация Blob в base64 строку
+/**
+ * @internal
+ * Конвертация Blob в base64 строку
+ */
 export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

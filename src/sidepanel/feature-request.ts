@@ -249,7 +249,10 @@ function handleResize(): void {
   }
 }
 
-// Инициализация формы Feature Request
+/**
+ * @internal
+ * Инициализация формы Feature Request
+ */
 export function initFeatureRequestForm(): void {
   // Обработчики событий для формы
   if (elements.featureRequestLink) {

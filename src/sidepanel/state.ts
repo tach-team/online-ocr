@@ -9,30 +9,44 @@ export type { State } from '../types';
 
 import type { State } from '../types';
 
-// Глобальное состояние
+/**
+ * @internal
+ * Глобальное состояние модуля
+ */
 export let currentImageData: string | null = null;
+/** @internal */
 export let originalRecognizedText: string = '';
+/** @internal */
 export let detectedLanguageCode: string | null = null;
+/** @internal */
 export let selectedLanguageCode: string | null = null;
+/** @internal */
 export let isLanguageDetectionUncertain: boolean = false;
 
-// Сеттеры для состояния (необходимы для изменения из других модулей)
+/**
+ * @internal
+ * Сеттеры для состояния (необходимы для изменения из других модулей)
+ */
 export function setCurrentImageData(data: string | null): void {
   currentImageData = data;
 }
 
+/** @internal */
 export function setOriginalRecognizedText(text: string): void {
   originalRecognizedText = text;
 }
 
+/** @internal */
 export function setDetectedLanguageCode(code: string | null): void {
   detectedLanguageCode = code;
 }
 
+/** @internal */
 export function setSelectedLanguageCode(code: string | null): void {
   selectedLanguageCode = code;
 }
 
+/** @internal */
 export function setIsLanguageDetectionUncertain(value: boolean): void {
   isLanguageDetectionUncertain = value;
 }
@@ -46,6 +60,7 @@ export function showState(state: State['type']): void {
 }
 
 /**
+ * @internal
  * Показать ошибку с сообщением
  * Унифицированная функция для отображения ошибок
  */
@@ -62,7 +77,10 @@ export function showError(error: unknown, defaultMessage: string = UI_STRINGS.UN
   showState(APP_STATES.ERROR);
 }
 
-// Функция для переключения состояния upload-container в режим обработки
+/**
+ * @internal
+ * Функция для переключения состояния upload-container в режим обработки
+ */
 export function setUploadContainerProcessing(imageData: string): void {
   elements.uploadArea.classList.add('processing');
   elements.uploadArea.style.setProperty('--processing-bg-image', `url(${imageData})`);
@@ -71,7 +89,10 @@ export function setUploadContainerProcessing(imageData: string): void {
   elements.progressFill.style.width = '0%';
 }
 
-// Функция для возврата upload-container к исходному состоянию
+/**
+ * @internal
+ * Функция для возврата upload-container к исходному состоянию
+ */
 export function resetUploadContainer(): void {
   elements.uploadArea.classList.remove('processing');
   elements.uploadArea.style.removeProperty('--processing-bg-image');
@@ -84,14 +105,20 @@ export function resetUploadContainer(): void {
   }
 }
 
-// Получить label языка по коду
+/**
+ * @internal
+ * Получить label языка по коду
+ */
 export function getLanguageLabel(code: string | null): string {
   if (!code) return UI_STRINGS.UNKNOWN_LANGUAGE;
   const lang = SUPPORTED_LANGUAGES.find((l) => l.code === code);
   return lang ? lang.label : code;
 }
 
-// Заполнить select с языками
+/**
+ * @internal
+ * Заполнить select с языками
+ */
 export function populateLanguageSelect(activeCode: string | null): void {
   if (!elements.resultLanguageSelect || !elements.resultLanguageContainer) return;
 
@@ -121,7 +148,10 @@ export function populateLanguageSelect(activeCode: string | null): void {
   elements.resultLanguageContainer.style.display = 'flex';
 }
 
-// Автоматическая подстройка высоты textarea
+/**
+ * @internal
+ * Автоматическая подстройка высоты textarea
+ */
 export function autoResizeTextarea(): void {
   // Сбрасываем высоту на auto для корректного расчета scrollHeight
   elements.resultText.style.height = 'auto';
@@ -150,7 +180,10 @@ export function autoResizeTextarea(): void {
   }
 }
 
-// Копирование в буфер обмена
+/**
+ * @internal
+ * Копирование в буфер обмена
+ */
 export async function copyToClipboard(): Promise<void> {
   const text = elements.resultText.value || '';
   if (!text) return;
