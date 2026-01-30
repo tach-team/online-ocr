@@ -6,8 +6,10 @@ const MESSAGE_TYPES = {
 
 const RESTRICTED_URL_PREFIXES = ['chrome://', 'chrome-extension://', 'edge://'];
 const CONTENT_SCRIPT = 'content.js';
+const CONTEXT_MENU_ID = 'online-ocr-convert';
 
-chrome.action.onClicked.addListener(async (tab) => {
+// Общая функция активации расширения (открытие sidepanel + инжекция content script)
+async function activateExtension(tab: chrome.tabs.Tab): Promise<void> {
   if (!tab.id) return;
 
   try {
@@ -42,6 +44,26 @@ chrome.action.onClicked.addListener(async (tab) => {
   } catch (error) {
     console.error('Error activating extension:', error);
   }
+}
+
+// Создаём контекстное меню при установке/обновлении расширения
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_ID,
+    title: 'Convert picture to text',
+    contexts: ['page', 'image', 'frame'],
+  });
+});
+
+// Обработчик клика по контекстному меню
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== CONTEXT_MENU_ID || !tab) return;
+  await activateExtension(tab);
+});
+
+// Обработчик клика по иконке расширения
+chrome.action.onClicked.addListener(async (tab) => {
+  await activateExtension(tab);
 });
 
 // Обработка сообщений от content script и side panel
