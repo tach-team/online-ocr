@@ -62,6 +62,32 @@ npm run build
 5. Дождитесь завершения обработки
 6. Нажмите "Копировать" для копирования текста в буфер обмена
 
+## Архитектура
+
+```mermaid
+flowchart LR
+    subgraph ext [Chrome Extension]
+        BG[background.ts]
+        CT[content.ts]
+        SP[sidepanel/]
+    end
+    
+    BG -->|"opens"| SP
+    BG -->|"injects"| CT
+    CT -->|"screenshot"| SP
+    SP -->|"OCR"| Tesseract[Tesseract.js]
+```
+
+### Поток данных
+
+1. **Пользователь** открывает sidepanel через иконку расширения
+2. **background.ts** инжектирует content script на страницу
+3. **content.ts** показывает overlay для выделения области
+4. После выделения **background.ts** делает скриншот вкладки
+5. Изображение передаётся в **sidepanel/** для обработки
+6. **utils/ocr.ts** выполняет OCR через Tesseract.js
+7. Результат отображается пользователю
+
 ## Разработка
 
 ### Режим разработки с автопересборкой
@@ -77,19 +103,54 @@ npm run dev
 │   ├── background.ts      # Service worker
 │   ├── content.ts         # Content script с overlay
 │   ├── sidepanel.html     # HTML side panel
-│   ├── sidepanel.ts       # Логика side panel
+│   ├── sidepanel.ts       # Точка входа side panel
+│   ├── sidepanel/         # Модули side panel
+│   │   ├── index.ts       # Инициализация, публичный API
+│   │   ├── state.ts       # Управление состоянием
+│   │   ├── image-processing.ts  # OCR pipeline
+│   │   ├── overlay.ts     # Управление overlay
+│   │   ├── clipboard.ts   # Вставка из буфера
+│   │   ├── drag-drop.ts   # Drag & drop файлов
+│   │   └── file-handling.ts    # Валидация файлов
 │   ├── utils/
-│   │   ├── ocr.ts         # OCR утилиты (Tesseract.js)
+│   │   ├── ocr.ts         # OCR (Tesseract.js)
+│   │   ├── languages.ts   # Конфигурация языков
+│   │   ├── image-crop.ts  # Обрезка изображений
+│   │   ├── pdf-to-image.ts    # Конвертация PDF
 │   │   ├── selection.ts   # Управление выделением
-│   │   └── image-crop.ts  # Обрезка изображений
+│   │   └── language-detection/  # Автоопределение языка
+│   │       ├── index.ts   # Основная логика
+│   │       ├── scandinavian.ts  # Скандинавские языки
+│   │       ├── finnish.ts # Финский
+│   │       ├── turkish.ts # Турецкий
+│   │       └── indonesian.ts   # Индонезийский
+│   ├── types/             # TypeScript типы
+│   ├── constants/         # Константы приложения
 │   └── styles/
 │       ├── overlay.css    # Стили overlay
 │       └── sidepanel.css  # Стили side panel
+├── docs/
+│   └── adr/               # Architecture Decision Records
 ├── icons/                 # Иконки расширения
 ├── manifest.json          # Конфигурация расширения
 ├── vite.config.ts         # Конфигурация Vite
 └── tsconfig.json          # Конфигурация TypeScript
 ```
+
+### Документация модулей
+
+Каждый модуль содержит README.md с описанием:
+- `src/sidepanel/README.md` - UI и логика панели
+- `src/utils/README.md` - Утилиты OCR и обработки
+- `src/types/README.md` - TypeScript типы
+- `src/constants/README.md` - Константы
+
+### Architecture Decision Records
+
+Ключевые архитектурные решения документированы в `docs/adr/`:
+- [001-tesseract-client-side-ocr.md](docs/adr/001-tesseract-client-side-ocr.md) - Клиентский OCR
+- [002-sidepanel-modular-architecture.md](docs/adr/002-sidepanel-modular-architecture.md) - Модульная архитектура
+- [003-language-detection-heuristics.md](docs/adr/003-language-detection-heuristics.md) - Автоопределение языка
 
 ## Особенности реализации
 
